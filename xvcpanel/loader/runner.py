@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 import subprocess
 from pathlib import Path
@@ -10,7 +9,7 @@ from xvcpanel.models.visual import Visual, VisualStatus
 log = logging.getLogger(__name__)
 
 
-async def build_visual(visual: Visual) -> tuple[bool, str]:
+def build_visual(visual: Visual) -> tuple[bool, str]:
     if not visual.build_cmd:
         return True, "no build command"
 
@@ -18,40 +17,44 @@ async def build_visual(visual: Visual) -> tuple[bool, str]:
     log.info("building %s: %s", visual.name, visual.build_cmd)
 
     try:
-        proc = await asyncio.create_subprocess_shell(
+        result = subprocess.run(
             visual.build_cmd,
+            shell=True,
             cwd=str(visual.path),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+            capture_output=True,
+            timeout=120,
         )
-        stdout, stderr = await proc.communicate()
-        output = (stdout or b"").decode(errors="replace") + (stderr or b"").decode(errors="replace")
+        output = result.stdout.decode(errors="replace") + result.stderr.decode(errors="replace")
 
-        if proc.returncode != 0:
+        if result.returncode != 0:
             visual.status = VisualStatus.ERROR
             return False, output
 
         return True, output
+    except subprocess.TimeoutExpired:
+        visual.status = VisualStatus.ERROR
+        return False, "build timed out after 120s"
     except Exception as e:
         visual.status = VisualStatus.ERROR
         return False, str(e)
 
 
-async def run_visual(visual: Visual) -> tuple[bool, str]:
+def run_visual(visual: Visual) -> tuple[bool, str]:
     if not visual.run_cmd:
         return False, "no run command"
 
-    ok, output = await build_visual(visual)
+    ok, output = build_visual(visual)
     if not ok:
         return False, f"build failed:\n{output}"
 
     log.info("running %s: %s", visual.name, visual.run_cmd)
     try:
-        proc = await asyncio.create_subprocess_shell(
+        proc = subprocess.Popen(
             visual.run_cmd,
+            shell=True,
             cwd=str(visual.path),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
         visual.process = proc
         visual.status = VisualStatus.RUNNING
@@ -63,15 +66,22 @@ async def run_visual(visual: Visual) -> tuple[bool, str]:
 
 def stop_visual(visual: Visual) -> bool:
     proc = visual.process
-    if proc is None or proc.returncode is not None:
+    if proc is None or proc.poll() is not None:
         visual.status = VisualStatus.STOPPED
+        visual.process = None
         return True
 
     try:
         proc.terminate()
+        proc.wait(timeout=5)
         visual.status = VisualStatus.STOPPED
         visual.process = None
         return True
     except Exception:
-        log.exception("failed to stop %s", visual.name)
+        try:
+            proc.kill()
+        except Exception:
+            pass
+        visual.status = VisualStatus.STOPPED
+        visual.process = None
         return False

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING
 
 from textual import on, work
@@ -260,18 +259,19 @@ class XVCpanel(App):
     """
 
     BINDINGS = [
-        Binding("j,down",     "cursor_down",  "↓",   show=True),
-        Binding("k,up",       "cursor_up",    "↑",   show=True),
-        Binding("enter",      "run_visual",   "Run",  show=True),
-        Binding("b",          "build_visual", "Build",show=True),
-        Binding("s",          "stop_visual",  "Stop", show=True),
-        Binding("f",          "filter_all",   "All",  show=True),
-        Binding("1",          "filter_of",    "oF",   show=True),
-        Binding("2",          "filter_nannou","Nan",  show=True),
-        Binding("3",          "filter_glsl",  "GLSL", show=True),
-        Binding("4",          "filter_proc",  "Proc", show=True),
-        Binding("slash",      "focus_search", "/",    show=False),
-        Binding("escape",     "clear_search", "Esc",  show=False),
+        Binding("j,down",     "cursor_down",  "down",   show=True, priority=True),
+        Binding("k,up",       "cursor_up",    "up",     show=True, priority=True),
+        Binding("enter",      "run_visual",   "Run",    show=True, priority=True),
+        Binding("r",          "run_visual",   "Run",    show=False, priority=True),
+        Binding("b",          "build_visual", "Build",  show=True, priority=True),
+        Binding("s",          "stop_visual",  "Stop",   show=True, priority=True),
+        Binding("f",          "filter_all",   "All",    show=True, priority=True),
+        Binding("1",          "filter_of",    "oF",     show=True, priority=True),
+        Binding("2",          "filter_nannou","Nan",    show=True, priority=True),
+        Binding("3",          "filter_glsl",  "GLSL",   show=True, priority=True),
+        Binding("4",          "filter_proc",  "Proc",   show=True, priority=True),
+        Binding("slash",      "focus_search", "/",      show=False, priority=True),
+        Binding("escape",     "clear_search", "Esc",    show=False, priority=True),
         Binding("q",          "quit",         "Quit", show=True),
     ]
 
@@ -459,24 +459,26 @@ class XVCpanel(App):
 
     @work(thread=True)
     def _do_build(self, visual: Visual) -> None:
-        self.call_from_thread(self._set_status, f" ⏳ building {visual.name}...")
-        ok, output = asyncio.run(build_visual(visual))
+        self.call_from_thread(self._set_status, f" building {visual.name}...")
+        ok, output = build_visual(visual)
         self.call_from_thread(self._refresh)
         if not ok:
-            self.call_from_thread(self._set_status, f" ✗ build failed: {output[:100]}")
+            self.call_from_thread(self._set_status, f" build failed: {output[:100]}")
+        else:
+            self.call_from_thread(self._set_status, f" {visual.name} built OK")
 
     @work(thread=True)
     def _do_run(self, visual: Visual) -> None:
-        self.call_from_thread(self._set_status, f" ⏳ starting {visual.name}...")
-        ok, output = asyncio.run(run_visual(visual))
+        self.call_from_thread(self._set_status, f" starting {visual.name}...")
+        ok, output = run_visual(visual)
         self.call_from_thread(self._refresh)
         if not ok:
-            self.call_from_thread(self._set_status, f" ✗ run failed: {output[:100]}")
+            self.call_from_thread(self._set_status, f" run failed: {output[:100]}")
         else:
-            self.call_from_thread(self._set_status, f" ▶ {visual.name} → Spout")
+            self.call_from_thread(self._set_status, f" {visual.name} running")
 
     @work(thread=True)
     def _do_stop(self, visual: Visual) -> None:
         stop_visual(visual)
         self.call_from_thread(self._refresh)
-        self.call_from_thread(self._set_status, f" ■ {visual.name} stopped")
+        self.call_from_thread(self._set_status, f" {visual.name} stopped")
