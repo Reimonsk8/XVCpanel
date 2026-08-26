@@ -29,13 +29,10 @@ FW_SHORT = {
 }
 
 
-def _open_cmd(command: str, cwd: Path, check: str = "") -> None:
-    """Open a new terminal window running command. User closes it manually."""
-    # ponytail: Windows-only. macOS: replace with ["open", "-a", "Terminal", ...]
-    check_cmd = f"where {check} >nul 2>&1 || (echo ERROR: {check} not found. Install it first. && pause && exit /b 1) && " if check else ""
-    full = f'{check_cmd}{command}'
+def _open_cmd(command: str, cwd: Path) -> None:
+    """Open a new terminal window running command."""
     subprocess.Popen(
-        f'start cmd /k "cd /d {cwd} && {full} && pause"',
+        f'start cmd /k "cd /d {cwd} && {command} && pause"',
         shell=True,
     )
 
@@ -206,14 +203,16 @@ class XVCpanel(App):
     def action_build_visual(self) -> None:
         vis = self._selected()
         if vis and vis.build_cmd:
-            check = {Framework.OPENFRAMEWORKS: "make", Framework.NANNOU: "cargo"}.get(vis.framework, "")
-            _open_cmd(vis.build_cmd, vis.path, check)
+            _open_cmd(vis.build_cmd, vis.path)
+        elif vis:
+            self.query_one("#status-bar").update(f" {vis.name}: no build step")
 
     def action_run_visual(self) -> None:
         vis = self._selected()
         if vis and vis.run_cmd:
-            check = {Framework.PROCESSING: "processing-java", Framework.GLSL: "glslViewer", Framework.NANNOU: "cargo"}.get(vis.framework, "")
-            _open_cmd(vis.run_cmd, vis.path, check)
+            _open_cmd(vis.run_cmd, vis.path)
+        elif vis:
+            self.query_one("#status-bar").update(f" {vis.name}: no run command")
 
     def action_toggle_preview(self) -> None:
         self.preview_visible = not self.preview_visible
