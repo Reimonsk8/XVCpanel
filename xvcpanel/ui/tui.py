@@ -246,26 +246,29 @@ class XVCpanel(App):
 
     # --- Async workers ---
 
+    def _set_status(self, text: str) -> None:
+        self.query_one(StatusBar).status_text = text
+
     @work(thread=True)
     def _do_build(self, visual: Visual) -> None:
-        self.call_from_thread(self.query_one(StatusBar).status_text, f"building {visual.name}...")
+        self.call_from_thread(self._set_status, f"building {visual.name}...")
         ok, output = asyncio.run(build_visual(visual))
         self.call_from_thread(self._refresh_table)
         if not ok:
-            self.call_from_thread(self.query_one(StatusBar).status_text, f"build failed: {output[:120]}")
+            self.call_from_thread(self._set_status, f"build failed: {output[:120]}")
 
     @work(thread=True)
     def _do_run(self, visual: Visual) -> None:
-        self.call_from_thread(self.query_one(StatusBar).status_text, f"starting {visual.name}...")
+        self.call_from_thread(self._set_status, f"starting {visual.name}...")
         ok, output = asyncio.run(run_visual(visual))
         self.call_from_thread(self._refresh_table)
         if not ok:
-            self.call_from_thread(self.query_one(StatusBar).status_text, f"run failed: {output[:120]}")
+            self.call_from_thread(self._set_status, f"run failed: {output[:120]}")
         else:
-            self.call_from_thread(self.query_one(StatusBar).status_text, f"{visual.name} running → Spout")
+            self.call_from_thread(self._set_status, f"{visual.name} running → Spout")
 
     @work(thread=True)
     def _do_stop(self, visual: Visual) -> None:
         stop_visual(visual)
         self.call_from_thread(self._refresh_table)
-        self.call_from_thread(self.query_one(StatusBar).status_text, f"{visual.name} stopped")
+        self.call_from_thread(self._set_status, f"{visual.name} stopped")
