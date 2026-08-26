@@ -1,0 +1,9 @@
+{
+  "name": "Wave Mesh",
+  "framework": "nannou",
+  "build": "cargo build --release",
+  "run": "cargo run --release",
+  "spout": false,
+  "tags": ["mesh", "3d", "wave"],
+  "description": "Animated 3D mesh with sine wave displacement"
+}

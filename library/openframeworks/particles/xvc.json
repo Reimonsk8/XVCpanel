@@ -1,0 +1,9 @@
+{
+  "name": "Curl Noise Particles",
+  "framework": "openframeworks",
+  "build": "make",
+  "run": "./bin/particles",
+  "spout": true,
+  "tags": ["particles", "gpu", "noise"],
+  "description": "GPU particle system driven by curl noise field"
+}
