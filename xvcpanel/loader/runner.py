@@ -51,14 +51,12 @@ def run_visual(visual: Visual) -> tuple[bool, str]:
 
     log.info("running %s: %s", visual.name, command)
     try:
-        creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP") else 0
+        # ponytail: Windows-only CREATE_NEW_CONSOLE. macOS: use subprocess with shell=True
+        flags = subprocess.CREATE_NEW_CONSOLE if hasattr(subprocess, "CREATE_NEW_CONSOLE") else 0
         proc = subprocess.Popen(
-            command,
+            f"cmd /k cd /d {visual.path} && {command}",
             shell=True,
-            cwd=str(visual.path),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            creationflags=creationflags,
+            creationflags=flags,
         )
         visual.process = proc
         visual.status = VisualStatus.RUNNING
