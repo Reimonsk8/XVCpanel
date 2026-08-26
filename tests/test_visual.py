@@ -1,10 +1,25 @@
 import unittest
+import os
+import tempfile
 from pathlib import Path
 
+from xvcpanel.__main__ import add_local_tools
 from xvcpanel.models.visual import Visual
 
 
 class VisualManifestTest(unittest.TestCase):
+    def test_local_tools_are_added_to_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = Path(directory, ".tools", "runtime", "tool.exe")
+            executable.parent.mkdir(parents=True)
+            executable.touch()
+            original = os.environ.get("PATH", "")
+            try:
+                add_local_tools(Path(directory))
+                self.assertIn(str(executable.parent), os.environ["PATH"].split(os.pathsep))
+            finally:
+                os.environ["PATH"] = original
+
     def test_outputs_and_parameters_are_parsed_and_clamped(self):
         visual = Visual.from_dict({
             "name": "Test",

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -17,6 +18,19 @@ def find_library(base: Path) -> Path:
     if lib.is_dir():
         return lib
     return base
+
+
+def add_local_tools(base: Path) -> None:
+    """Make runtimes installed by install.ps1 visible without global PATH edits."""
+    tools = base / ".tools"
+    if not tools.is_dir():
+        return
+    paths = {str(path.parent) for path in tools.rglob("*.exe")}
+    cargo = Path.home() / ".cargo" / "bin"
+    if cargo.is_dir():
+        paths.add(str(cargo))
+    if paths:
+        os.environ["PATH"] = os.pathsep.join(sorted(paths)) + os.pathsep + os.environ.get("PATH", "")
 
 
 def main() -> None:
@@ -55,6 +69,7 @@ def main() -> None:
     )
 
     project_root = args.dir or Path(__file__).resolve().parent.parent
+    add_local_tools(project_root)
     library_path = find_library(project_root)
 
     spout = SpoutBridge(name=args.spout_name)

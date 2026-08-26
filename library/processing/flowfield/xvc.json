@@ -7,5 +7,5 @@
   "tags": ["flowfield", "particles", "organic"],
   "description": "Perlin flow field with 10k particles",
   "requires": ["processing-java"],
-  "install_hint": "Install Processing from processing.org/download and add to PATH"
+  "install_hint": "Run .\\install.ps1 -InstallRuntimes"
 }

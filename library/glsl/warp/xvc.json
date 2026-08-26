@@ -7,5 +7,5 @@
   "tags": ["warp", "effect", "frag"],
   "description": "GLSL fragment shader — domain warping with fbm",
   "requires": ["glslViewer"],
-  "install_hint": "brew install glslViewer (Mac) or github.com/patriciogonzalezvivo/glslViewer/releases"
+  "install_hint": "Run .\\install.ps1 -InstallRuntimes"
 }

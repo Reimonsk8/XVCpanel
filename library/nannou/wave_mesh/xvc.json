@@ -7,5 +7,5 @@
   "tags": ["mesh", "3d", "wave"],
   "description": "Animated 3D mesh with sine wave displacement",
   "requires": ["cargo"],
-  "install_hint": "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+  "install_hint": "Run .\\install.ps1 -InstallRuntimes"
 }

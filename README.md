@@ -19,14 +19,22 @@ The script creates `.venv`, installs all Python dependencies, checks optional vi
 .\.venv\Scripts\python.exe -m xvcpanel -d .
 ```
 
+Install the supported optional runtimes automatically without administrator access:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -InstallRuntimes
+```
+
+This installs Rust/Nannou, portable Processing, and portable glslViewer under `.tools`. XVCpanel discovers them automatically, including after reopening the terminal. Processing is roughly a 500 MB download. Re-running the command is safe and skips existing portable tools.
+
 Visual frameworks are optional. Install only those used by your projects:
 
 | Runtime | Windows setup |
 |---|---|
-| openFrameworks | [openframeworks.cc/download](https://openframeworks.cc/download) plus its Visual Studio toolchain |
-| Nannou / Rust | [rustup.rs](https://rustup.rs/) |
-| Processing | [processing.org/download](https://processing.org/download), add `processing-java` to PATH |
-| GLSL | [glslViewer releases](https://github.com/patriciogonzalezvivo/glslViewer/releases), add it to PATH |
+| openFrameworks | Manual: [openframeworks.cc/download](https://openframeworks.cc/download) plus its matching Visual Studio toolchain |
+| Nannou / Rust | Automatic with `-InstallRuntimes` |
+| Processing | Automatic portable install with `-InstallRuntimes` |
+| GLSL | Automatic portable glslViewer/FFmpeg install with `-InstallRuntimes` |
 | Any other runtime | Put its executable on PATH or use an absolute command in `xvc.json` |
 
 ## Controls
