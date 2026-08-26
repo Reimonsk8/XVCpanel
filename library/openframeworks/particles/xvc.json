@@ -5,5 +5,7 @@
   "run": "./bin/particles",
   "spout": true,
   "tags": ["particles", "gpu", "noise"],
-  "description": "GPU particle system driven by curl noise field"
+  "description": "GPU particle system driven by curl noise field",
+  "requires": ["make"],
+  "install_hint": "Install openFrameworks from openframeworks.cc/download"
 }

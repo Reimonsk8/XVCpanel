@@ -52,17 +52,20 @@ class PreviewPanel(Static):
             yield Label("[bold cyan]DESCRIPTION[/]", id="pv-desc-label")
             yield Label("--", id="pv-desc")
             yield Rule()
+            yield Label("[bold cyan]REQUIRES[/]", id="pv-requires-label")
+            yield Label("--", id="pv-requires")
+            yield Rule()
+            yield Label("[bold cyan]INSTALL[/]", id="pv-install-label")
+            yield Label("[dim]--[/]", id="pv-install")
+            yield Rule()
             yield Label("[bold cyan]BUILD[/]", id="pv-build-label")
             yield Label("[dim]--[/]", id="pv-build")
             yield Rule()
             yield Label("[bold cyan]RUN[/]", id="pv-run-label")
             yield Label("[dim]--[/]", id="pv-run")
-            yield Rule()
-            yield Label("[bold cyan]SPOUT[/]", id="pv-spout-label")
-            yield Label("--", id="pv-spout")
 
     def update_visual(self, vis: Visual | None) -> None:
-        ids = ["pv-name", "pv-fw", "pv-tags", "pv-desc", "pv-build", "pv-run", "pv-spout"]
+        ids = ["pv-name", "pv-fw", "pv-tags", "pv-desc", "pv-requires", "pv-install", "pv-build", "pv-run"]
         if vis is None:
             for i in ids:
                 self.query_one(f"#{i}", Label).update("[dim]--[/]")
@@ -73,14 +76,24 @@ class PreviewPanel(Static):
             " ".join(f"[dim][{t}][/]" for t in vis.tags) if vis.tags else "[dim]none[/]"
         )
         self.query_one("#pv-desc", Label).update(vis.description or "[dim]no description[/]")
+
+        missing = vis.missing_deps()
+        if not vis.requires:
+            self.query_one("#pv-requires", Label).update("[dim]none[/]")
+        elif not missing:
+            self.query_one("#pv-requires", Label).update(f"[green]{', '.join(vis.requires)}[/]")
+        else:
+            self.query_one("#pv-requires", Label).update(
+                f"[green]{', '.join(r for r in vis.requires if r not in missing)}[/]"
+                f" [red]MISSING:[/]{', '.join(missing)}"
+            )
+
+        self.query_one("#pv-install", Label).update(vis.install_hint or "[dim]--[/]")
         self.query_one("#pv-build", Label).update(
             f"[green]{vis.build_cmd}[/]" if vis.build_cmd else "[dim]no build step[/]"
         )
         self.query_one("#pv-run", Label).update(
             f"[green]{vis.run_cmd}[/]" if vis.run_cmd else "[dim]no run command[/]"
-        )
-        self.query_one("#pv-spout", Label).update(
-            "[bold green]ON[/]" if vis.spout else "[dim]off[/]"
         )
 
 
@@ -152,7 +165,7 @@ class XVCpanel(App):
 
     def on_mount(self) -> None:
         table = self.query_one("#visual-table", DataTable)
-        table.add_columns("Name", "FW", "Tags", "Spout")
+        table.add_columns("Ready", "Name", "FW", "Tags")
         self.visuals = scan_library(self.library_path)
         self._refresh()
         table.focus()
@@ -170,13 +183,18 @@ class XVCpanel(App):
         table = self.query_one("#visual-table", DataTable)
         table.clear()
         for v in self._filtered():
+            if v.ready():
+                ready = "[green]READY[/]"
+            else:
+                missing = ", ".join(v.missing_deps())
+                ready = f"[red]NEED:[/][dim]{missing}[/]"
             tags = ", ".join(v.tags[:3]) if v.tags else "--"
-            spout = "ON" if v.spout else "--"
-            table.add_row(v.name, FW_SHORT.get(v.framework, "?"), tags, spout)
+            table.add_row(ready, v.name, FW_SHORT.get(v.framework, "?"), tags)
         vis = self._selected()
         self.query_one("#preview", PreviewPanel).update_visual(vis)
         n = len(self.visuals)
-        self.query_one("#status-bar").update(f" {n} visuals loaded")
+        r = sum(1 for v in self.visuals if v.ready())
+        self.query_one("#status-bar").update(f" {n} visuals  |  {r} ready  |  {n - r} need deps")
 
     def _selected(self) -> Visual | None:
         table = self.query_one("#visual-table", DataTable)
