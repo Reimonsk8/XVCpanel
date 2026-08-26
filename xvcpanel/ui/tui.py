@@ -209,8 +209,7 @@ class XVCpanel(App):
     #visual-table > .datatable--hover {
         background: #0e1628;
     }
-    /* Status column coloring via child labels */
-    #visual-table DataTable > .datatable--cursor > Label:nth-child(1) {
+    #visual-table DataTable > .datatable--cursor > Label:first-child {
         color: #00e5ff;
         text-style: bold;
     }
