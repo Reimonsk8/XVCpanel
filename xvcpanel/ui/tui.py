@@ -219,6 +219,13 @@ class XVCpanel(App):
         background: #0c1020;
         padding: 1 2;
     }
+    #preview-panel.hidden {
+        display: none;
+    }
+    #list-panel.expanded {
+        width: 100%;
+        border-right: none;
+    }
     #preview-inner {
         height: 1fr;
     }
@@ -265,6 +272,7 @@ class XVCpanel(App):
         Binding("r",          "run_visual",   "Run",    show=False, priority=True),
         Binding("b",          "build_visual", "Build",  show=True, priority=True),
         Binding("s",          "stop_visual",  "Stop",   show=True, priority=True),
+        Binding("p",          "toggle_preview","Preview",show=True, priority=True),
         Binding("f",          "filter_all",   "All",    show=True, priority=True),
         Binding("1",          "filter_of",    "oF",     show=True, priority=True),
         Binding("2",          "filter_nannou","Nan",    show=True, priority=True),
@@ -285,6 +293,7 @@ class XVCpanel(App):
         self.spout = spout or SpoutBridge()
         self.active_filter: Framework | None = None
         self.search_query: str = ""
+        self.preview_visible: bool = True
 
     def compose(self) -> ComposeResult:
         yield Header(id="app-header")
@@ -311,9 +320,10 @@ class XVCpanel(App):
         yield Label(
             "[dim] j/↓[/][help-key] down[/]  "
             "[dim] k/↑[/][help-key] up[/]  "
-            "[dim] ⏎[/][help-key] run[/]  "
+            "[dim] Enter[/][help-key] run[/]  "
             "[dim] b[/][help-key] build[/]  "
             "[dim] s[/][help-key] stop[/]  "
+            "[dim] p[/][help-key] preview[/]  "
             "[dim] /[/][help-key] search[/]  "
             "[dim] 1-4[/][help-key] filter[/]  "
             "[dim] q[/][help-key] quit[/]",
@@ -434,6 +444,17 @@ class XVCpanel(App):
 
     def action_focus_search(self) -> None:
         self.query_one("#search-input", Input).focus()
+
+    def action_toggle_preview(self) -> None:
+        self.preview_visible = not self.preview_visible
+        preview = self.query_one("#preview-panel")
+        list_panel = self.query_one("#list-panel")
+        if self.preview_visible:
+            preview.remove_class("hidden")
+            list_panel.remove_class("expanded")
+        else:
+            preview.add_class("hidden")
+            list_panel.add_class("expanded")
 
     def action_clear_search(self) -> None:
         self.query_one("#search-input", Input).value = ""
