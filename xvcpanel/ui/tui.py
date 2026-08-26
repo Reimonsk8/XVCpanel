@@ -1,23 +1,14 @@
 from __future__ import annotations
 
+import subprocess
 from typing import TYPE_CHECKING
 
-from textual import on, work
+from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.reactive import reactive
-from textual.widgets import (
-    DataTable,
-    Footer,
-    Header,
-    Input,
-    Label,
-    Rule,
-    Static,
-)
+from textual.widgets import DataTable, Header, Input, Label, Rule, Static
 
-from xvcpanel.loader.runner import build_visual, run_visual, stop_visual
 from xvcpanel.loader.scanner import scan_library
 from xvcpanel.models.visual import Framework, Visual, VisualStatus
 from xvcpanel.spout.bridge import SpoutBridge
@@ -25,262 +16,112 @@ from xvcpanel.spout.bridge import SpoutBridge
 if TYPE_CHECKING:
     from pathlib import Path
 
+# ponytail: status is display-only, no process tracking. add when you need live state.
 
-# ── Status icons ──────────────────────────────────────────────────────────────
-
-STATUS_STYLE = {
-    VisualStatus.IDLE:    "[dim]○ idle[/]",
-    VisualStatus.BUILDING:"[bold yellow]◉ build[/]",
-    VisualStatus.RUNNING: "[bold green]● live[/]",
-    VisualStatus.ERROR:   "[bold red]✗ error[/]",
-    VisualStatus.STOPPED: "[dim]■ stopped[/]",
-}
-
-STATUS_SHORT = {
-    VisualStatus.IDLE:    "○ idle",
-    VisualStatus.BUILDING: "◉ BUILD",
-    VisualStatus.RUNNING: "● LIVE",
-    VisualStatus.ERROR:   "✗ ERR",
-    VisualStatus.STOPPED: "■ stop",
-}
-
-FRAMEWORK_SHORT = {
+FW_SHORT = {
     Framework.OPENFRAMEWORKS: "oF",
-    Framework.NANNOU:         "Nan",
-    Framework.PROCESSING:     "Proc",
-    Framework.GLSL:           "GLSL",
-    Framework.THREEJS:        "3.js",
-    Framework.CINDER:         "Cin",
-    Framework.CUSTOM:         "???",
-}
-
-FRAMEWORK_FILTER_KEYS = {
-    "1": Framework.OPENFRAMEWORKS,
-    "2": Framework.NANNOU,
-    "3": Framework.GLSL,
-    "4": Framework.PROCESSING,
+    Framework.NANNOU: "Nan",
+    Framework.PROCESSING: "Proc",
+    Framework.GLSL: "GLSL",
+    Framework.THREEJS: "3.js",
+    Framework.CINDER: "Cin",
+    Framework.CUSTOM: "???",
 }
 
 
-# ── Widgets ───────────────────────────────────────────────────────────────────
+def _open_cmd(command: str, cwd: Path) -> None:
+    """Open a new terminal window running command. User closes it manually."""
+    # ponytail: Windows-only. macOS: replace with ["open", "-a", "Terminal", ...]
+    subprocess.Popen(
+        f'start cmd /k "cd /d {cwd} && {command} && pause"',
+        shell=True,
+    )
+
 
 class PreviewPanel(Static):
-    """Right-side panel showing selected visual details."""
-
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="preview-inner"):
             yield Label("[bold cyan]NAME[/]", id="pv-name-label")
-            yield Label("—", id="pv-name")
+            yield Label("--", id="pv-name")
             yield Rule()
             yield Label("[bold cyan]FRAMEWORK[/]", id="pv-fw-label")
-            yield Label("—", id="pv-fw")
-            yield Rule()
-            yield Label("[bold cyan]STATUS[/]", id="pv-status-label")
-            yield Label("—", id="pv-status")
+            yield Label("--", id="pv-fw")
             yield Rule()
             yield Label("[bold cyan]TAGS[/]", id="pv-tags-label")
-            yield Label("—", id="pv-tags")
+            yield Label("--", id="pv-tags")
             yield Rule()
             yield Label("[bold cyan]DESCRIPTION[/]", id="pv-desc-label")
-            yield Label("—", id="pv-desc")
+            yield Label("--", id="pv-desc")
             yield Rule()
             yield Label("[bold cyan]BUILD[/]", id="pv-build-label")
-            yield Label("[dim]—[/]", id="pv-build")
+            yield Label("[dim]--[/]", id="pv-build")
             yield Rule()
             yield Label("[bold cyan]RUN[/]", id="pv-run-label")
-            yield Label("[dim]—[/]", id="pv-run")
+            yield Label("[dim]--[/]", id="pv-run")
             yield Rule()
             yield Label("[bold cyan]SPOUT[/]", id="pv-spout-label")
-            yield Label("—", id="pv-spout")
+            yield Label("--", id="pv-spout")
 
     def update_visual(self, vis: Visual | None) -> None:
+        ids = ["pv-name", "pv-fw", "pv-tags", "pv-desc", "pv-build", "pv-run", "pv-spout"]
         if vis is None:
-            for lbl_id in ["pv-name", "pv-fw", "pv-status", "pv-tags",
-                           "pv-desc", "pv-build", "pv-run", "pv-spout"]:
-                self.query_one(f"#{lbl_id}", Label).update("[dim]—[/]")
+            for i in ids:
+                self.query_one(f"#{i}", Label).update("[dim]--[/]")
             return
-
         self.query_one("#pv-name", Label).update(f"[bold white]{vis.name}[/]")
-        self.query_one("#pv-fw", Label).update(
-            f"[bold magenta]{vis.framework.value}[/]  "
-            f"[dim]({FRAMEWORK_SHORT.get(vis.framework, '?')})[/]"
-        )
-        self.query_one("#pv-status", Label).update(STATUS_STYLE[vis.status])
+        self.query_one("#pv-fw", Label).update(f"[bold magenta]{vis.framework.value}[/]")
         self.query_one("#pv-tags", Label).update(
-            "  ".join(f"[dim]\\[{t}][/]" for t in vis.tags) if vis.tags else "[dim]none[/]"
+            " ".join(f"[dim][{t}][/]" for t in vis.tags) if vis.tags else "[dim]none[/]"
         )
-        self.query_one("#pv-desc", Label).update(
-            vis.description if vis.description else "[dim]no description[/]"
-        )
+        self.query_one("#pv-desc", Label).update(vis.description or "[dim]no description[/]")
         self.query_one("#pv-build", Label).update(
             f"[green]{vis.build_cmd}[/]" if vis.build_cmd else "[dim]no build step[/]"
         )
         self.query_one("#pv-run", Label).update(
             f"[green]{vis.run_cmd}[/]" if vis.run_cmd else "[dim]no run command[/]"
         )
-        spout_txt = "[bold green]ENABLED[/]" if vis.spout else "[dim]disabled[/]"
-        self.query_one("#pv-spout", Label).update(spout_txt)
+        self.query_one("#pv-spout", Label).update(
+            "[bold green]ON[/]" if vis.spout else "[dim]off[/]"
+        )
 
-
-class FilterPill(Static):
-    """A small filter indicator chip."""
-    def __init__(self, label: str, **kwargs) -> None:
-        super().__init__(label, **kwargs)
-
-
-# ── Main App ──────────────────────────────────────────────────────────────────
 
 class XVCpanel(App):
-
     CSS = r"""
-    Screen {
-        background: #0a0e17;
-    }
-
-    /* ── Header ── */
-    #app-header {
-        dock: top;
-        height: 3;
-        background: #0f1423;
-        border-bottom: tall #1a2744;
-        padding: 0 1;
-    }
-    #app-header .header--title {
-        color: #00e5ff;
-        text-style: bold;
-    }
-    #app-header .header--subtitle {
-        color: #4a6a8a;
-    }
-
-    /* ── Search ── */
-    #search-container {
-        dock: top;
-        height: 3;
-        background: #0c1020;
-        border-bottom: tall #1a2744;
-        padding: 0 2;
-    }
-    #search-input {
-        background: #111827;
-        border: tall #1e3a5f;
-        color: #00e5ff;
-        width: 100%;
-    }
-    #search-input:focus {
-        border: tall #00e5ff;
-    }
-
-    /* ── Filter bar ── */
-    #filter-bar {
-        dock: top;
-        height: 3;
-        background: #0c1020;
-        border-bottom: tall #1a2744;
-        padding: 0 1;
-    }
-    .filter-active {
-        color: #00e5ff;
-        text-style: bold;
-    }
-    .filter-inactive {
-        color: #3a4a5a;
-    }
-
-    /* ── Main split ── */
-    #main-split {
-        height: 1fr;
-    }
-
-    /* ── Left: visual list ── */
-    #list-panel {
-        width: 58%;
-        border-right: tall #1a2744;
-        background: #0a0e17;
-    }
-    #visual-table {
-        background: #0a0e17;
-    }
-    #visual-table > .datatable--cursor {
-        background: #111d33;
-        color: #00e5ff;
-    }
-    #visual-table > .datatable--hover {
-        background: #0e1628;
-    }
-    #visual-table DataTable > .datatable--cursor > Label:first-child {
-        color: #00e5ff;
-        text-style: bold;
-    }
-
-    /* ── Right: preview ── */
-    #preview-panel {
-        width: 45%;
-        background: #0c1020;
-        padding: 1 2;
-    }
-    #preview-panel.hidden {
-        display: none;
-    }
-    #list-panel.expanded {
-        width: 100%;
-        border-right: none;
-    }
-    #preview-inner {
-        height: 1fr;
-    }
-    #preview-inner Label {
-        padding: 0 0;
-    }
-    #preview-inner Rule {
-        color: #1a2744;
-        margin: 0 0;
-    }
-
-    /* ── Footer / help ── */
-    #help-bar {
-        dock: bottom;
-        height: 3;
-        background: #0f1423;
-        border-top: tall #1a2744;
-        padding: 0 1;
-        color: #4a6a8a;
-    }
-    .help-key {
-        color: #00e5ff;
-        text-style: bold;
-    }
-    .help-label {
-        color: #3a5a7a;
-    }
-
-    /* ── Status bar ── */
-    #status-bar {
-        dock: bottom;
-        height: 1;
-        background: #00e5ff;
-        color: #0a0e17;
-        text-style: bold;
-        padding: 0 1;
-    }
+    Screen { background: #0a0e17; }
+    #app-header { dock: top; height: 3; background: #0f1423; border-bottom: tall #1a2744; }
+    #app-header .header--title { color: #00e5ff; text-style: bold; }
+    #search-box { dock: top; height: 3; background: #0c1020; border-bottom: tall #1a2744; padding: 0 2; }
+    #search-input { background: #111827; border: tall #1e3a5f; color: #00e5ff; width: 100%; }
+    #search-input:focus { border: tall #00e5ff; }
+    #filter-bar { dock: top; height: 3; background: #0c1020; border-bottom: tall #1a2744; padding: 0 1; }
+    .fkey { color: #00e5ff; text-style: bold; }
+    #main-split { height: 1fr; }
+    #list-panel { width: 58%; border-right: tall #1a2744; background: #0a0e17; }
+    #list-panel.wide { width: 100%; border-right: none; }
+    #visual-table { background: #0a0e17; }
+    #visual-table > .datatable--cursor { background: #111d33; color: #00e5ff; }
+    #preview-panel { width: 42%; background: #0c1020; padding: 1 2; }
+    #preview-panel.hidden { display: none; }
+    #preview-inner { height: 1fr; }
+    #preview-inner Rule { color: #1a2744; }
+    #status-bar { dock: bottom; height: 1; background: #00e5ff; color: #0a0e17; text-style: bold; padding: 0 1; }
+    #help-bar { dock: bottom; height: 3; background: #0f1423; border-top: tall #1a2744; padding: 0 1; color: #4a6a8a; }
     """
 
     BINDINGS = [
-        Binding("j,down",     "cursor_down",  "down",   show=True, priority=True),
-        Binding("k,up",       "cursor_up",    "up",     show=True, priority=True),
-        Binding("enter",      "run_visual",   "Run",    show=True, priority=True),
-        Binding("r",          "run_visual",   "Run",    show=False, priority=True),
-        Binding("b",          "build_visual", "Build",  show=True, priority=True),
-        Binding("s",          "stop_visual",  "Stop",   show=True, priority=True),
-        Binding("p",          "toggle_preview","Preview",show=True, priority=True),
-        Binding("f",          "filter_all",   "All",    show=True, priority=True),
-        Binding("1",          "filter_of",    "oF",     show=True, priority=True),
-        Binding("2",          "filter_nannou","Nan",    show=True, priority=True),
-        Binding("3",          "filter_glsl",  "GLSL",   show=True, priority=True),
-        Binding("4",          "filter_proc",  "Proc",   show=True, priority=True),
-        Binding("slash",      "focus_search", "/",      show=False, priority=True),
-        Binding("escape",     "clear_search", "Esc",    show=False, priority=True),
-        Binding("q",          "quit",         "Quit", show=True),
+        Binding("j,down", "cursor_down", "down", show=True, priority=True),
+        Binding("k,up", "cursor_up", "up", show=True, priority=True),
+        Binding("enter", "run_visual", "Run", show=True, priority=True),
+        Binding("b", "build_visual", "Build", show=True, priority=True),
+        Binding("p", "toggle_preview", "Preview", show=True, priority=True),
+        Binding("f", "filter_all", "All", show=True, priority=True),
+        Binding("1", "filter_of", "oF", show=True, priority=True),
+        Binding("2", "filter_nannou", "Nan", show=True, priority=True),
+        Binding("3", "filter_glsl", "GLSL", show=True, priority=True),
+        Binding("4", "filter_proc", "Proc", show=True, priority=True),
+        Binding("slash", "focus_search", "/", show=False, priority=True),
+        Binding("escape", "clear_search", "Esc", show=False, priority=True),
+        Binding("q", "quit", "Quit", show=True),
     ]
 
     TITLE = " XVCpanel "
@@ -297,87 +138,46 @@ class XVCpanel(App):
 
     def compose(self) -> ComposeResult:
         yield Header(id="app-header")
-
-        with Vertical(id="search-container"):
-            yield Input(placeholder=" search visuals by name, tag, framework...", id="search-input")
-
+        with Vertical(id="search-box"):
+            yield Input(placeholder=" search visuals...", id="search-input")
         with Horizontal(id="filter-bar"):
-            yield Label("[bold cyan]FILTERS[/]  ", id="filter-label")
-            yield Label("[bold cyan]1[/][dim]:oF[/]  ", classes="filter-active")
-            yield Label("[bold cyan]2[/][dim]:Nan[/]  ", classes="filter-active")
-            yield Label("[bold cyan]3[/][dim]:GLSL[/]  ", classes="filter-active")
-            yield Label("[bold cyan]4[/][dim]:Proc[/]  ", classes="filter-active")
-            yield Label("[dim]f:All[/]", classes="filter-active")
-            yield Label("   ", id="active-filter-display")
-
+            yield Label(" [bold cyan]1[/][dim]:oF[/]  [bold cyan]2[/][dim]:Nan[/]  [bold cyan]3[/][dim]:GLSL[/]  [bold cyan]4[/][dim]:Proc[/]  [dim]f:All[/]   ", id="filter-display")
+            yield Label("--", id="active-filter")
         with Horizontal(id="main-split"):
             with Vertical(id="list-panel"):
                 yield DataTable(cursor_type="row", id="visual-table")
             with Vertical(id="preview-panel"):
                 yield PreviewPanel(id="preview")
-
         yield Label(id="status-bar")
-        yield Label(
-            "[dim] j/↓[/][help-key] down[/]  "
-            "[dim] k/↑[/][help-key] up[/]  "
-            "[dim] Enter[/][help-key] run[/]  "
-            "[dim] b[/][help-key] build[/]  "
-            "[dim] s[/][help-key] stop[/]  "
-            "[dim] p[/][help-key] preview[/]  "
-            "[dim] /[/][help-key] search[/]  "
-            "[dim] 1-4[/][help-key] filter[/]  "
-            "[dim] q[/][help-key] quit[/]",
-            id="help-bar",
-        )
+        yield Label(" j/Down:move  Enter:run  b:build  p:preview  1-4:filter  /:search  q:quit", id="help-bar")
 
     def on_mount(self) -> None:
         table = self.query_one("#visual-table", DataTable)
-        table.add_columns("  Status  ", "Name", "FW", "Tags", "Spout")
-        self._load_visuals()
-        table.focus()
-
-    # ── Data ──────────────────────────────────────────────────────────────
-
-    def _load_visuals(self) -> None:
+        table.add_columns("Name", "FW", "Tags", "Spout")
         self.visuals = scan_library(self.library_path)
         self._refresh()
+        table.focus()
 
     def _filtered(self) -> list[Visual]:
-        result = self.visuals
+        r = self.visuals
         if self.active_filter:
-            result = [v for v in result if v.framework == self.active_filter]
+            r = [v for v in r if v.framework == self.active_filter]
         if self.search_query:
             q = self.search_query.lower()
-            result = [v for v in result if q in v.filter_key()]
-        return result
+            r = [v for v in r if q in v.filter_key()]
+        return r
 
     def _refresh(self) -> None:
         table = self.query_one("#visual-table", DataTable)
         table.clear()
         for v in self._filtered():
-            status = STATUS_SHORT[v.status]
-            tags = ", ".join(v.tags[:3]) if v.tags else "—"
-            spout = "[green]ON[/]" if v.spout else "[dim]--[/]"
-            table.add_row(status, v.name, FRAMEWORK_SHORT.get(v.framework, "?"), tags, spout)
-        self._update_preview()
-        self._update_status()
-
-    def _update_preview(self) -> None:
+            tags = ", ".join(v.tags[:3]) if v.tags else "--"
+            spout = "ON" if v.spout else "--"
+            table.add_row(v.name, FW_SHORT.get(v.framework, "?"), tags, spout)
         vis = self._selected()
         self.query_one("#preview", PreviewPanel).update_visual(vis)
-
-    def _update_status(self) -> None:
-        running = [v for v in self.visuals if v.status == VisualStatus.RUNNING]
-        spout_s = "Spout OK" if self.spout.available else "Spout stub"
-        if running:
-            names = ", ".join(v.name for v in running)
-            self.query_one("#status-bar").update(
-                f" ▶ {names}  →  {spout_s}"
-            )
-        else:
-            self.query_one("#status-bar").update(
-                f" ○ {len(self.visuals)} visuals loaded  │  {spout_s}"
-            )
+        n = len(self.visuals)
+        self.query_one("#status-bar").update(f" {n} visuals loaded")
 
     def _selected(self) -> Visual | None:
         table = self.query_one("#visual-table", DataTable)
@@ -386,75 +186,44 @@ class XVCpanel(App):
             return None
         return flt[table.cursor_row]
 
-    # ── Actions ───────────────────────────────────────────────────────────
+    # -- Actions --
 
     def action_cursor_down(self) -> None:
-        table = self.query_one("#visual-table", DataTable)
-        table.move_cursor(row=table.cursor_row + 1 if table.cursor_row is not None else 0)
-        self._update_preview()
+        t = self.query_one("#visual-table", DataTable)
+        r = (t.cursor_row or 0) + 1
+        if r < len(self._filtered()):
+            t.move_cursor(row=r)
+            self.query_one("#preview", PreviewPanel).update_visual(self._selected())
 
     def action_cursor_up(self) -> None:
-        table = self.query_one("#visual-table", DataTable)
-        row = table.cursor_row - 1 if table.cursor_row and table.cursor_row > 0 else 0
-        table.move_cursor(row=row)
-        self._update_preview()
-
-    def action_filter_all(self) -> None:
-        self.active_filter = None
-        self.query_one("#active-filter-display").update("[bold green]ALL[/]")
-        self._refresh()
-
-    def action_filter_of(self) -> None:
-        self._toggle_filter(Framework.OPENFRAMEWORKS, "oF")
-
-    def action_filter_nannou(self) -> None:
-        self._toggle_filter(Framework.NANNOU, "Nannou")
-
-    def action_filter_glsl(self) -> None:
-        self._toggle_filter(Framework.GLSL, "GLSL")
-
-    def action_filter_proc(self) -> None:
-        self._toggle_filter(Framework.PROCESSING, "Processing")
-
-    def _toggle_filter(self, fw: Framework, label: str) -> None:
-        if self.active_filter == fw:
-            self.active_filter = None
-            self.query_one("#active-filter-display").update("[bold green]ALL[/]")
-        else:
-            self.active_filter = fw
-            self.query_one("#active-filter-display").update(
-                f"[bold magenta]{label.upper()}[/]"
-            )
-        self._refresh()
+        t = self.query_one("#visual-table", DataTable)
+        r = max(0, (t.cursor_row or 1) - 1)
+        t.move_cursor(row=r)
+        self.query_one("#preview", PreviewPanel).update_visual(self._selected())
 
     def action_build_visual(self) -> None:
         vis = self._selected()
-        if vis:
-            self._do_build(vis)
+        if vis and vis.build_cmd:
+            _open_cmd(vis.build_cmd, vis.path)
 
     def action_run_visual(self) -> None:
         vis = self._selected()
-        if vis:
-            self._do_run(vis)
-
-    def action_stop_visual(self) -> None:
-        vis = self._selected()
-        if vis:
-            self._do_stop(vis)
-
-    def action_focus_search(self) -> None:
-        self.query_one("#search-input", Input).focus()
+        if vis and vis.run_cmd:
+            _open_cmd(vis.run_cmd, vis.path)
 
     def action_toggle_preview(self) -> None:
         self.preview_visible = not self.preview_visible
-        preview = self.query_one("#preview-panel")
-        list_panel = self.query_one("#list-panel")
+        p = self.query_one("#preview-panel")
+        l = self.query_one("#list-panel")
         if self.preview_visible:
-            preview.remove_class("hidden")
-            list_panel.remove_class("expanded")
+            p.remove_class("hidden")
+            l.remove_class("wide")
         else:
-            preview.add_class("hidden")
-            list_panel.add_class("expanded")
+            p.add_class("hidden")
+            l.add_class("wide")
+
+    def action_focus_search(self) -> None:
+        self.query_one("#search-input", Input).focus()
 
     def action_clear_search(self) -> None:
         self.query_one("#search-input", Input).value = ""
@@ -462,7 +231,28 @@ class XVCpanel(App):
         self.query_one("#visual-table", DataTable).focus()
         self._refresh()
 
-    # ── Events ────────────────────────────────────────────────────────────
+    def action_filter_all(self) -> None:
+        self.active_filter = None
+        self.query_one("#active-filter").update("[bold green]ALL[/]")
+        self._refresh()
+
+    def action_filter_of(self) -> None:
+        self._toggle(Framework.OPENFRAMEWORKS, "oF")
+
+    def action_filter_nannou(self) -> None:
+        self._toggle(Framework.NANNOU, "Nannou")
+
+    def action_filter_glsl(self) -> None:
+        self._toggle(Framework.GLSL, "GLSL")
+
+    def action_filter_proc(self) -> None:
+        self._toggle(Framework.PROCESSING, "Processing")
+
+    def _toggle(self, fw: Framework, label: str) -> None:
+        self.active_filter = None if self.active_filter == fw else fw
+        txt = label.upper() if self.active_filter else "ALL"
+        self.query_one("#active-filter").update(f"[bold magenta]{txt}[/]")
+        self._refresh()
 
     @on(Input.Changed, "#search-input")
     def on_search(self, event: Input.Changed) -> None:
@@ -471,35 +261,4 @@ class XVCpanel(App):
 
     @on(DataTable.RowSelected)
     def on_row(self, event: DataTable.RowSelected) -> None:
-        self._update_preview()
-
-    # ── Workers ───────────────────────────────────────────────────────────
-
-    def _set_status(self, text: str) -> None:
-        self.query_one("#status-bar").update(f" {text}")
-
-    @work(thread=True)
-    def _do_build(self, visual: Visual) -> None:
-        self.call_from_thread(self._set_status, f" building {visual.name}...")
-        ok, output = build_visual(visual)
-        self.call_from_thread(self._refresh)
-        if not ok:
-            self.call_from_thread(self._set_status, f" build failed: {output[:100]}")
-        else:
-            self.call_from_thread(self._set_status, f" {visual.name} built OK")
-
-    @work(thread=True)
-    def _do_run(self, visual: Visual) -> None:
-        self.call_from_thread(self._set_status, f" starting {visual.name}...")
-        ok, output = run_visual(visual)
-        self.call_from_thread(self._refresh)
-        if not ok:
-            self.call_from_thread(self._set_status, f" run failed: {output[:100]}")
-        else:
-            self.call_from_thread(self._set_status, f" {visual.name} running")
-
-    @work(thread=True)
-    def _do_stop(self, visual: Visual) -> None:
-        stop_visual(visual)
-        self.call_from_thread(self._refresh)
-        self.call_from_thread(self._set_status, f" {visual.name} stopped")
+        self.query_one("#preview", PreviewPanel).update_visual(self._selected())
