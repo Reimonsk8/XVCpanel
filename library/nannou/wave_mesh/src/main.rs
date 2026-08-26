@@ -12,7 +12,7 @@ fn main() {
 }
 
 fn model(_app: &App) -> Model {
-    _app.new_wnd()
+    _app.new_window()
         .size(1920, 1080)
         .title("XVCpanel — Wave Mesh")
         .build()

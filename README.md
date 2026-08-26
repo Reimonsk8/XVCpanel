@@ -1,193 +1,103 @@
 # XVCpanel
 
-Terminal visual mixer — browse, build, run, and switch between visual projects across multiple frameworks. Outputs to Resolume via Spout.
+Windows-first live control surface for code visuals. Browse projects from any language, build and run them, switch their configured output route, and control manifest-exposed OSC parameters with manual values or an LFO.
 
-![Futuristic TUI with split-panel layout, status columns, and neon styling](https://img.shields.io/badge/status-active-00e5ff?style=flat-square) ![Python 3.10+](https://img.shields.io/badge/python-3.10+-3776ab?style=flat-square) ![Textual](https://img.shields.io/badge/TUI-Textual-00e5ff?style=flat-square)
+XVCpanel launches renderers; rendering and video transport stay in each renderer's graphics process. This means a visual must implement its own Spout, NDI, Syphon, or window output. The panel never labels a manifest flag as verified video output.
 
 ## Quick Start
 
+Install Python 3.10+, then run:
+
 ```powershell
-git clone https://github.com/Reimonsk8/XVCpanel.git
-cd XVCpanel
-.\install.ps1
+powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-Or manual:
+The script creates `.venv`, installs all Python dependencies, checks optional visual tools, and launches the app. For installation without launch:
 
-```bash
-pip install -e .
-python -m xvcpanel
+```powershell
+.\install.ps1 -NoLaunch
+.\.venv\Scripts\python.exe -m xvcpanel -d .
 ```
 
-## Prerequisites
+Visual frameworks are optional. Install only those used by your projects:
 
-### Python (required)
+| Runtime | Windows setup |
+|---|---|
+| openFrameworks | [openframeworks.cc/download](https://openframeworks.cc/download) plus its Visual Studio toolchain |
+| Nannou / Rust | [rustup.rs](https://rustup.rs/) |
+| Processing | [processing.org/download](https://processing.org/download), add `processing-java` to PATH |
+| GLSL | [glslViewer releases](https://github.com/patriciogonzalezvivo/glslViewer/releases), add it to PATH |
+| Any other runtime | Put its executable on PATH or use an absolute command in `xvc.json` |
 
-```bash
-pip install textual
-```
-
-### Frameworks (install only what you need)
-
-| Framework | Install | Demo |
-|-----------|---------|------|
-| **openFrameworks** | [openframeworks.cc/download](https://openframeworks.cc/download) → extract to `C:\openframeworks` | Particles, Fluid Sim |
-| **Nannou** | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` | Wave Mesh |
-| **Processing** | [processing.org/download](https://processing.org/download) → add to PATH | Flow Field |
-| **GLSL** | [glslViewer releases](https://github.com/patriciogonzalezvivo/glslViewer/releases) | Warp Shader |
-
-## Usage
-
-```bash
-python -m xvcpanel          # Launch TUI
-python -m xvcpanel --list   # List all visuals
-python -m xvcpanel -d /path # Custom project root
-python -m xvcpanel -v       # Verbose logging
-```
-
-## TUI Controls
+## Controls
 
 | Key | Action |
-|-----|--------|
-| `j` / `↓` | Move down |
-| `k` / `↑` | Move up |
-| `Enter` | Run selected visual |
-| `b` | Build selected visual |
-| `s` | Stop selected visual |
-| `f` | Show all frameworks |
-| `1` | Filter: openFrameworks |
-| `2` | Filter: Nannou |
-| `3` | Filter: GLSL |
-| `4` | Filter: Processing |
-| `/` | Search by name/tag |
-| `Esc` | Clear search |
-| `q` | Quit |
+|---|---|
+| `j` / `Down`, `k` / `Up` | Select visual |
+| `Enter` | Build if needed and run selected route |
+| `b`, `s` | Build, stop |
+| `o` | Switch configured output route |
+| `[` / `]` | Select exposed parameter |
+| `-` / `=` | Decrease / increase parameter |
+| `m` | Toggle a 0.25 Hz sine LFO on the parameter |
+| `1`-`4`, `f` | Filter frameworks / show all |
+| `/`, `Esc` | Search / clear search |
+| `p`, `q` | Toggle details / quit |
 
-## Table Columns
+## Add Any Visual
 
-| Column | Description |
-|--------|-------------|
-| **Status** | `○ idle` → `◉ BUILD` → `● LIVE` / `■ stopped` / `✗ error` |
-| **Name** | Visual display name |
-| **FW** | Framework abbreviation (oF, Nan, GLSL, Proc) |
-| **Tags** | Filterable tags |
-| **Spout** | `ON` if sends to Resolume |
-
-## Preview Panel
-
-Right panel shows full details for the selected visual:
-- Name, framework, status
-- Tags, description
-- Build command, run command
-- Spout status
-
-## Running Demos Manually
-
-### Curl Noise Particles (openFrameworks)
-
-```bash
-cd library/openframeworks/particles
-make
-./bin/particles
-```
-
-**Controls:** `P` pause, `F` fullscreen, `C` clear trails
-
-### Fluid Sim Stable (openFrameworks)
-
-```bash
-cd library/openframeworks/fluid
-make
-./bin/fluid
-```
-
-**Controls:** click+drag to inject fluid, `C` clear, `F` fullscreen
-
-### Wave Mesh (Nannou)
-
-```bash
-cd library/nannou/wave_mesh
-cargo run --release
-```
-
-### Warp Shader (GLSL)
-
-```bash
-cd library/glsl/warp
-glslViewer warp.frag -w 1920 -h 1080
-```
-
-**Controls:** `F` fullscreen, `ESC` quit
-
-### Flow Field (Processing)
-
-```bash
-cd library/processing/flowfield
-processing-java --sketch=$(pwd) --run
-```
-
-**Controls:** click+drag to inject, `F` fullscreen, `C` clear
-
-## Adding Your Own Visuals
-
-Create a folder under `library/<framework>/<name>/` with an `xvc.json`:
+XVCpanel is command-based, so the source can be C++, Rust, Processing, GLSL, JavaScript, Python, TouchDesigner, Unreal, Unity, or another runtime. Add `xvc.json` beside the project:
 
 ```json
 {
   "name": "My Visual",
-  "framework": "openframeworks",
-  "build": "make",
-  "run": "./bin/myvisual",
-  "spout": true,
-  "tags": ["particles", "gpu"],
-  "description": "Description shown in the UI"
+  "framework": "custom",
+  "build": "",
+  "run": "python visual.py",
+  "requires": ["python"],
+  "tags": ["generative", "audio"],
+  "description": "A controllable visual",
+  "outputs": [
+    {"name": "Preview", "protocol": "window"},
+    {"name": "Resolume", "protocol": "spout", "run_cmd": "python visual.py --spout XVC-MyVisual"},
+    {"name": "Network", "protocol": "ndi", "run_cmd": "python visual.py --ndi XVC-MyVisual"}
+  ],
+  "osc": {"host": "127.0.0.1", "port": 9001},
+  "parameters": [
+    {"name": "Speed", "address": "/visual/speed", "min": 0.0, "max": 4.0, "default": 1.0},
+    {"name": "Intensity", "address": "/visual/intensity", "min": 0.0, "max": 1.0, "default": 0.7}
+  ]
 }
 ```
 
-### xvc.json Fields
+`run_cmd` is optional per output; without it, the top-level `run` command is used. XVCpanel sends parameters as standard OSC float messages. The visual must listen on the declared UDP port and implement each address.
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `name` | yes | Display name in the TUI |
-| `framework` | yes | `openframeworks`, `nannou`, `processing`, `glsl`, `threejs`, `custom` |
-| `build` | no | Build command (leave empty if no build step) |
-| `run` | yes | Run command |
-| `spout` | no | `true` if output goes to Spout for Resolume |
-| `tags` | no | Array of tags for filtering |
-| `description` | no | Shown in preview panel |
+Supported framework labels are `openframeworks`, `nannou`, `processing`, `glsl`, `threejs`, `cinder`, and `custom`. Use `custom` for every other language; it does not limit the command or runtime.
 
-## Spout → Resolume
+## Resolume
 
-On Windows, visuals with `"spout": true` send their output via Spout2.
+For lowest-latency local Windows video, implement a Spout sender in the visual process that owns the framebuffer:
 
-1. Install Spout2 from https://spout.leadedge.com/
-2. In Resolume, add a new **Spout** input
-3. Select the sender name (matches the visual's window title)
+1. Install [Spout2](https://spout.leadedge.com/) and the appropriate runtime addon or SDK.
+2. Render into an FBO/texture in the visual.
+3. Send that texture under a stable sender name.
+4. Add a Spout source with that sender name in Resolume.
+5. Add an `outputs` entry whose command enables that sender.
 
-On Mac, use **Syphon** instead (same concept, different protocol).
+Use NDI for network video. Use Syphon for a native macOS renderer. These transports cannot be made universal by the Python panel because GPU textures belong to the renderer's graphics context.
 
-## Project Structure
+## CLI
 
+```powershell
+.\.venv\Scripts\python.exe -m xvcpanel
+.\.venv\Scripts\python.exe -m xvcpanel --list
+.\.venv\Scripts\python.exe -m xvcpanel -d C:\path\to\project
 ```
-XVCpanel/
-├── library/                    # Visual projects by framework
-│   ├── openframeworks/
-│   │   ├── particles/          # Curl noise particles (8k GPU)
-│   │   └── fluid/              # Stable fluids sim (128x128)
-│   ├── nannou/
-│   │   └── wave_mesh/          # Animated mesh with HSL
-│   ├── glsl/
-│   │   └── warp/               # Domain warp shader (fbm)
-│   └── processing/
-│       └── flowfield/          # 10k particle flow field
-├── xvcpanel/                   # Python panel
-│   ├── __init__.py
-│   ├── __main__.py             # CLI entry point
-│   ├── models/                 # Visual, Framework, VisualStatus
-│   ├── loader/                 # Scanner + build/run runner
-│   ├── spout/                  # Spout2 bridge
-│   └── ui/                     # Textual TUI (split-panel, neon CSS)
-├── install.ps1                 # One-shot install & run
-├── pyproject.toml
-└── README.md
+
+The bundled examples demonstrate their visual frameworks. Their current manifests intentionally expose only window output until runtime-local OSC and Spout implementations are added.
+
+## Checks
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests
 ```

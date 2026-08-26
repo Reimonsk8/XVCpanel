@@ -1,22 +1,23 @@
 from __future__ import annotations
 
-import subprocess
+import math
+import time
 from typing import TYPE_CHECKING
 
-from textual import on
+from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import DataTable, Header, Input, Label, Rule, Static
 
+from xvcpanel.controls.osc import send_float
+from xvcpanel.loader.runner import build_visual, run_visual, stop_visual
 from xvcpanel.loader.scanner import scan_library
 from xvcpanel.models.visual import Framework, Visual, VisualStatus
 from xvcpanel.spout.bridge import SpoutBridge
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-# ponytail: status is display-only, no process tracking. add when you need live state.
 
 FW_SHORT = {
     Framework.OPENFRAMEWORKS: "oF",
@@ -28,13 +29,13 @@ FW_SHORT = {
     Framework.CUSTOM: "???",
 }
 
-
-def _open_cmd(command: str, cwd: Path) -> None:
-    """Open a new terminal window running command."""
-    subprocess.Popen(
-        f'start cmd /k "cd /d {cwd} && {command} && pause"',
-        shell=True,
-    )
+STATUS = {
+    VisualStatus.IDLE: "[dim]IDLE[/]",
+    VisualStatus.BUILDING: "[yellow]BUILD[/]",
+    VisualStatus.RUNNING: "[bold green]LIVE[/]",
+    VisualStatus.ERROR: "[bold red]ERROR[/]",
+    VisualStatus.STOPPED: "[dim]STOP[/]",
+}
 
 
 class PreviewPanel(Static):
@@ -42,6 +43,12 @@ class PreviewPanel(Static):
         with VerticalScroll(id="preview-inner"):
             yield Label("[bold cyan]NAME[/]", id="pv-name-label")
             yield Label("--", id="pv-name")
+            yield Rule()
+            yield Label("[bold cyan]OUTPUT ROUTE[/]", id="pv-output-label")
+            yield Label("--", id="pv-output")
+            yield Rule()
+            yield Label("[bold cyan]LIVE CONTROLS[/]", id="pv-controls-label")
+            yield Label("--", id="pv-controls")
             yield Rule()
             yield Label("[bold cyan]FRAMEWORK[/]", id="pv-fw-label")
             yield Label("--", id="pv-fw")
@@ -65,12 +72,28 @@ class PreviewPanel(Static):
             yield Label("[dim]--[/]", id="pv-run")
 
     def update_visual(self, vis: Visual | None) -> None:
-        ids = ["pv-name", "pv-fw", "pv-tags", "pv-desc", "pv-requires", "pv-install", "pv-build", "pv-run"]
+        ids = ["pv-name", "pv-output", "pv-controls", "pv-fw", "pv-tags", "pv-desc", "pv-requires", "pv-install", "pv-build", "pv-run"]
         if vis is None:
             for i in ids:
                 self.query_one(f"#{i}", Label).update("[dim]--[/]")
             return
         self.query_one("#pv-name", Label).update(f"[bold white]{vis.name}[/]")
+        output = vis.output
+        configured = "[green]CONFIGURED[/]" if output.protocol == "window" else "[yellow]APP-SIDE[/]"
+        self.query_one("#pv-output", Label).update(
+            f"[bold magenta]{output.name}[/]  [dim]{output.protocol.upper()}[/]  {configured}\n"
+            "[dim]o: switch route · transport runs inside the visual[/]"
+        )
+        if vis.parameters:
+            controls = []
+            for index, parameter in enumerate(vis.parameters):
+                marker = "[bold cyan]>[/]" if index == getattr(self.app, "parameter_index", 0) else " "
+                lfo = " [bold magenta]~LFO[/]" if parameter.lfo else ""
+                controls.append(f"{marker} {parameter.name:<14} [bold white]{parameter.value:7.3f}[/]{lfo}")
+            controls.append("[dim]brackets:select  -/=:value  m:LFO[/]")
+            self.query_one("#pv-controls", Label).update("\n".join(controls))
+        else:
+            self.query_one("#pv-controls", Label).update("[dim]No parameters declared in xvc.json[/]")
         self.query_one("#pv-fw", Label).update(f"[bold magenta]{vis.framework.value}[/]")
         self.query_one("#pv-tags", Label).update(
             " ".join(f"[dim][{t}][/]" for t in vis.tags) if vis.tags else "[dim]none[/]"
@@ -99,24 +122,24 @@ class PreviewPanel(Static):
 
 class XVCpanel(App):
     CSS = r"""
-    Screen { background: #0a0e17; }
-    #app-header { dock: top; height: 3; background: #0f1423; border-bottom: tall #1a2744; }
+    Screen { background: #070912; }
+    #app-header { dock: top; height: 3; background: #11152a; border-bottom: tall #6d28d9; }
     #app-header .header--title { color: #00e5ff; text-style: bold; }
-    #search-box { dock: top; height: 3; background: #0c1020; border-bottom: tall #1a2744; padding: 0 2; }
+    #search-box { dock: top; height: 3; background: #0b1020; border-bottom: tall #1a2744; padding: 0 2; }
     #search-input { background: #111827; border: tall #1e3a5f; color: #00e5ff; width: 100%; }
     #search-input:focus { border: tall #00e5ff; }
-    #filter-bar { dock: top; height: 3; background: #0c1020; border-bottom: tall #1a2744; padding: 0 1; }
+    #filter-bar { dock: top; height: 3; background: #0b1020; border-bottom: tall #1a2744; padding: 0 1; }
     .fkey { color: #00e5ff; text-style: bold; }
     #main-split { height: 1fr; }
     #list-panel { width: 58%; border-right: tall #1a2744; background: #0a0e17; }
     #list-panel.wide { width: 100%; border-right: none; }
     #visual-table { background: #0a0e17; }
     #visual-table > .datatable--cursor { background: #111d33; color: #00e5ff; }
-    #preview-panel { width: 42%; background: #0c1020; padding: 1 2; }
+    #preview-panel { width: 42%; background: #0b1020; padding: 1 2; border-left: tall #6d28d9; }
     #preview-panel.hidden { display: none; }
     #preview-inner { height: 1fr; }
     #preview-inner Rule { color: #1a2744; }
-    #status-bar { dock: bottom; height: 1; background: #00e5ff; color: #0a0e17; text-style: bold; padding: 0 1; }
+    #status-bar { dock: bottom; height: 1; background: #00e5ff; color: #070912; text-style: bold; padding: 0 1; }
     #help-bar { dock: bottom; height: 3; background: #0f1423; border-top: tall #1a2744; padding: 0 1; color: #4a6a8a; }
     """
 
@@ -125,6 +148,13 @@ class XVCpanel(App):
         Binding("k,up", "cursor_up", "up", show=True, priority=True),
         Binding("enter", "run_visual", "Run", show=True, priority=True),
         Binding("b", "build_visual", "Build", show=True, priority=True),
+        Binding("s", "stop_visual", "Stop", show=True, priority=True),
+        Binding("o", "next_output", "Output", show=True, priority=True),
+        Binding("left_square_bracket", "previous_parameter", "Control", show=False, priority=True),
+        Binding("right_square_bracket", "next_parameter", "Control", show=False, priority=True),
+        Binding("minus", "decrease_parameter", "Value", show=False, priority=True),
+        Binding("equals_sign", "increase_parameter", "Value", show=False, priority=True),
+        Binding("m", "toggle_lfo", "Modulate", show=True, priority=True),
         Binding("p", "toggle_preview", "Preview", show=True, priority=True),
         Binding("f", "filter_all", "All", show=True, priority=True),
         Binding("1", "filter_of", "oF", show=True, priority=True),
@@ -137,7 +167,7 @@ class XVCpanel(App):
     ]
 
     TITLE = " XVCpanel "
-    SUB_TITLE = "terminal visual mixer"
+    SUB_TITLE = "live visual control surface"
 
     def __init__(self, library_path: Path, spout: SpoutBridge | None = None) -> None:
         super().__init__()
@@ -147,6 +177,8 @@ class XVCpanel(App):
         self.active_filter: Framework | None = None
         self.search_query: str = ""
         self.preview_visible: bool = True
+        self.parameter_index: int = 0
+        self.lfo_started = time.monotonic()
 
     def compose(self) -> ComposeResult:
         yield Header(id="app-header")
@@ -161,13 +193,14 @@ class XVCpanel(App):
             with Vertical(id="preview-panel"):
                 yield PreviewPanel(id="preview")
         yield Label(id="status-bar")
-        yield Label(" j/Down:move  Enter:run  b:build  p:preview  1-4:filter  /:search  q:quit", id="help-bar")
+        yield Label(" j/k move  Enter run  b build  s stop  o route  brackets control  -/= value  m LFO  / search", id="help-bar")
 
     def on_mount(self) -> None:
         table = self.query_one("#visual-table", DataTable)
-        table.add_columns("Ready", "Name", "FW", "Tags")
+        table.add_columns("State", "Name", "FW", "Output", "Controls", "Tags")
         self.visuals = scan_library(self.library_path)
         self._refresh()
+        self.set_interval(0.05, self._tick_modulation)
         table.focus()
 
     def _filtered(self) -> list[Visual]:
@@ -183,18 +216,20 @@ class XVCpanel(App):
         table = self.query_one("#visual-table", DataTable)
         table.clear()
         for v in self._filtered():
-            if v.ready():
-                ready = "[green]READY[/]"
-            else:
+            state = STATUS[v.status]
+            if not v.ready():
                 missing = ", ".join(v.missing_deps())
-                ready = f"[red]NEED:[/][dim]{missing}[/]"
+                state = f"[red]NEED[/] [dim]{missing}[/]"
             tags = ", ".join(v.tags[:3]) if v.tags else "--"
-            table.add_row(ready, v.name, FW_SHORT.get(v.framework, "?"), tags)
+            params = str(len(v.parameters)) if v.parameters else "--"
+            table.add_row(state, v.name, FW_SHORT.get(v.framework, "?"), v.output.name, params, tags)
         vis = self._selected()
         self.query_one("#preview", PreviewPanel).update_visual(vis)
         n = len(self.visuals)
         r = sum(1 for v in self.visuals if v.ready())
-        self.query_one("#status-bar").update(f" {n} visuals  |  {r} ready  |  {n - r} need deps")
+        live = sum(1 for v in self.visuals if v.status == VisualStatus.RUNNING)
+        shown = len(self._filtered())
+        self.query_one("#status-bar").update(f" {shown}/{n} VISUALS  ·  {live} LIVE  ·  {r} TOOLS READY  ·  ROUTE + MODULATION ARMED")
 
     def _selected(self) -> Visual | None:
         table = self.query_one("#visual-table", DataTable)
@@ -221,16 +256,109 @@ class XVCpanel(App):
     def action_build_visual(self) -> None:
         vis = self._selected()
         if vis and vis.build_cmd:
-            _open_cmd(vis.build_cmd, vis.path)
+            self._build(vis)
         elif vis:
             self.query_one("#status-bar").update(f" {vis.name}: no build step")
 
     def action_run_visual(self) -> None:
         vis = self._selected()
-        if vis and vis.run_cmd:
-            _open_cmd(vis.run_cmd, vis.path)
+        if vis and (vis.output.run_cmd or vis.run_cmd):
+            self._run(vis)
         elif vis:
             self.query_one("#status-bar").update(f" {vis.name}: no run command")
+
+    @work(thread=True, exclusive=True, group="build")
+    def _build(self, vis: Visual) -> None:
+        ok, output = build_visual(vis)
+        message = f" {vis.name}: {'build complete' if ok else 'build failed'}"
+        if not ok and output:
+            message += f" · {output.strip().splitlines()[-1][:100]}"
+        self.call_from_thread(self._finish_action, message)
+
+    @work(thread=True, exclusive=True, group="run")
+    def _run(self, vis: Visual) -> None:
+        ok, output = run_visual(vis)
+        self.call_from_thread(self._finish_action, f" {vis.name}: {output if ok else 'failed · ' + output[-100:]}")
+
+    def _finish_action(self, message: str) -> None:
+        self._refresh()
+        self.query_one("#status-bar").update(message)
+
+    def action_stop_visual(self) -> None:
+        vis = self._selected()
+        if vis:
+            stop_visual(vis)
+            self._finish_action(f" {vis.name}: stopped")
+
+    def action_next_output(self) -> None:
+        vis = self._selected()
+        if vis:
+            output = vis.select_next_output()
+            self._refresh()
+            self.query_one("#status-bar").update(f" {vis.name} → {output.name} ({output.protocol})")
+
+    def _parameter(self):
+        vis = self._selected()
+        if not vis or not vis.parameters:
+            return vis, None
+        self.parameter_index %= len(vis.parameters)
+        return vis, vis.parameters[self.parameter_index]
+
+    def action_previous_parameter(self) -> None:
+        vis = self._selected()
+        if vis and vis.parameters:
+            self.parameter_index = (self.parameter_index - 1) % len(vis.parameters)
+            self.query_one("#preview", PreviewPanel).update_visual(vis)
+
+    def action_next_parameter(self) -> None:
+        vis = self._selected()
+        if vis and vis.parameters:
+            self.parameter_index = (self.parameter_index + 1) % len(vis.parameters)
+            self.query_one("#preview", PreviewPanel).update_visual(vis)
+
+    def action_decrease_parameter(self) -> None:
+        self._nudge_parameter(-1)
+
+    def action_increase_parameter(self) -> None:
+        self._nudge_parameter(1)
+
+    def _nudge_parameter(self, direction: int) -> None:
+        vis, parameter = self._parameter()
+        if parameter:
+            parameter.lfo = False
+            parameter.set_value(parameter.value + direction * (parameter.maximum - parameter.minimum) / 50)
+            self._send_parameter(vis, parameter)
+            self.query_one("#preview", PreviewPanel).update_visual(vis)
+
+    def action_toggle_lfo(self) -> None:
+        vis, parameter = self._parameter()
+        if parameter:
+            parameter.lfo = not parameter.lfo
+            self.query_one("#preview", PreviewPanel).update_visual(vis)
+
+    def _tick_modulation(self) -> None:
+        changed = False
+        phase = (time.monotonic() - self.lfo_started) * math.tau * 0.25
+        for vis in self.visuals:
+            if vis.status == VisualStatus.RUNNING and vis.process.poll() is not None:
+                vis.status = VisualStatus.STOPPED if vis.process.returncode == 0 else VisualStatus.ERROR
+                vis.process = None
+                changed = True
+            for parameter in vis.parameters:
+                if parameter.lfo:
+                    parameter.set_value(parameter.minimum + (math.sin(phase) + 1) * 0.5 * (parameter.maximum - parameter.minimum))
+                    self._send_parameter(vis, parameter)
+                    changed = True
+        if changed:
+            self.query_one("#preview", PreviewPanel).update_visual(self._selected())
+
+    def _send_parameter(self, vis: Visual, parameter) -> None:
+        if not vis.osc_port:
+            return
+        try:
+            send_float(vis.osc_host, vis.osc_port, parameter.address, parameter.value)
+        except (OSError, ValueError) as error:
+            self.query_one("#status-bar").update(f" OSC error: {error}")
 
     def action_toggle_preview(self) -> None:
         self.preview_visible = not self.preview_visible
@@ -282,4 +410,9 @@ class XVCpanel(App):
 
     @on(DataTable.RowSelected)
     def on_row(self, event: DataTable.RowSelected) -> None:
+        self.query_one("#preview", PreviewPanel).update_visual(self._selected())
+
+    @on(DataTable.RowHighlighted)
+    def on_highlight(self, event: DataTable.RowHighlighted) -> None:
+        self.parameter_index = 0
         self.query_one("#preview", PreviewPanel).update_visual(self._selected())

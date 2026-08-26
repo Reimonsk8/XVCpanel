@@ -25,6 +25,27 @@ class VisualStatus(str, enum.Enum):
 
 
 @dataclass
+class Output:
+    name: str
+    protocol: str = "window"
+    run_cmd: str = ""
+
+
+@dataclass
+class Parameter:
+    name: str
+    address: str
+    minimum: float = 0.0
+    maximum: float = 1.0
+    default: float = 0.5
+    value: float = 0.5
+    lfo: bool = False
+
+    def set_value(self, value: float) -> None:
+        self.value = min(self.maximum, max(self.minimum, value))
+
+
+@dataclass
 class Visual:
     name: str
     framework: Framework
@@ -36,11 +57,31 @@ class Visual:
     description: str = ""
     requires: list[str] = field(default_factory=list)
     install_hint: str = ""
+    outputs: list[Output] = field(default_factory=list)
+    parameters: list[Parameter] = field(default_factory=list)
+    osc_host: str = "127.0.0.1"
+    osc_port: int = 0
+    output_index: int = 0
     status: VisualStatus = VisualStatus.IDLE
     process: object = field(default=None, repr=False)
 
     @classmethod
     def from_dict(cls, data: dict, base_path: Path) -> Visual:
+        outputs = [Output(**output) for output in data.get("outputs", [])]
+        if not outputs:
+            outputs = [Output("Window", "window", data.get("run", ""))]
+        parameters = []
+        for item in data.get("parameters", []):
+            default = float(item.get("default", 0.5))
+            parameters.append(Parameter(
+                name=item["name"],
+                address=item["address"],
+                minimum=float(item.get("min", 0.0)),
+                maximum=float(item.get("max", 1.0)),
+                default=default,
+                value=default,
+            ))
+        osc = data.get("osc", {})
         return cls(
             name=data.get("name", base_path.name),
             framework=Framework(data.get("framework", "custom")),
@@ -52,7 +93,19 @@ class Visual:
             description=data.get("description", ""),
             requires=data.get("requires", []),
             install_hint=data.get("install_hint", ""),
+            outputs=outputs,
+            parameters=parameters,
+            osc_host=osc.get("host", "127.0.0.1"),
+            osc_port=int(osc.get("port", 0)),
         )
+
+    @property
+    def output(self) -> Output:
+        return self.outputs[self.output_index]
+
+    def select_next_output(self) -> Output:
+        self.output_index = (self.output_index + 1) % len(self.outputs)
+        return self.output
 
     def filter_key(self) -> str:
         return f"{self.name} {self.framework.value} {' '.join(self.tags)}".lower()

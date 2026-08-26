@@ -1,0 +1,19 @@
+import unittest
+from pathlib import Path
+
+from textual.widgets import DataTable
+
+from xvcpanel.ui.tui import XVCpanel
+
+
+class AppStartupTest(unittest.IsolatedAsyncioTestCase):
+    async def test_library_loads_in_control_surface(self):
+        app = XVCpanel(Path("library"))
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            self.assertEqual(len(app.visuals), 5)
+            self.assertEqual(app.query_one("#visual-table", DataTable).row_count, 5)
+
+
+if __name__ == "__main__":
+    unittest.main()

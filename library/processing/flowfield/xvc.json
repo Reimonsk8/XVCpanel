@@ -2,7 +2,7 @@
   "name": "Flow Field",
   "framework": "processing",
   "build": "",
-  "run": "processing-java --sketch=$(pwd) --run",
+  "run": "processing-java --sketch=\"%CD%\" --run",
   "spout": false,
   "tags": ["flowfield", "particles", "organic"],
   "description": "Perlin flow field with 10k particles",

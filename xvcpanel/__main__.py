@@ -1,4 +1,4 @@
-"""XVCpanel — Terminal Visual Mixer for Resolume."""
+"""XVCpanel live visual control surface."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def find_library(base: Path) -> Path:
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="xvcpanel",
-        description="Terminal visual mixer — browse, build, run visuals → Resolume via Spout",
+        description="Browse, run, route, and modulate code visuals",
     )
     parser.add_argument(
         "-d", "--dir",
@@ -64,12 +64,12 @@ def main() -> None:
         if not visuals:
             print("no visuals found in", library_path)
             sys.exit(0)
-        print(f"\n{'Name':<30} {'Framework':<15} {'Tags':<25} {'Spout'}")
+        print(f"\n{'Name':<30} {'Framework':<15} {'Tags':<25} {'Outputs'}")
         print("-" * 85)
         for v in visuals:
             tags = ", ".join(v.tags) if v.tags else "—"
-            spout_flag = "yes" if v.spout else ""
-            print(f"{v.name:<30} {v.framework.value:<15} {tags:<25} {spout_flag}")
+            outputs = ", ".join(output.protocol for output in v.outputs)
+            print(f"{v.name:<30} {v.framework.value:<15} {tags:<25} {outputs}")
         print(f"\n{len(visuals)} visual(s) found")
         sys.exit(0)
 

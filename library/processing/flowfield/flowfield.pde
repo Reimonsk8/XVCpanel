@@ -1,5 +1,5 @@
 // XVCpanel — Flow Field
-// Run with: processing-java --sketch=$(pwd) --run
+// Run with: processing-java --sketch=%CD% --run
 
 int W = 1920;
 int H = 1080;
@@ -37,7 +37,7 @@ void draw() {
     for (int x = 0; x < COLS; x++) {
         float yoff = 0;
         for (int y = 0; y < ROWS; y++) {
-            float angle = noise(xoff, yoff, zoff) TWO_PI * 2;
+            float angle = noise(xoff, yoff, zoff) * TWO_PI * 2;
             flowField[x + y * COLS] = angle;
             yoff += 0.1;
         }

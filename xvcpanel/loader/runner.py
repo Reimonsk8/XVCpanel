@@ -30,6 +30,7 @@ def build_visual(visual: Visual) -> tuple[bool, str]:
             visual.status = VisualStatus.ERROR
             return False, output
 
+        visual.status = VisualStatus.IDLE
         return True, output
     except subprocess.TimeoutExpired:
         visual.status = VisualStatus.ERROR
@@ -40,21 +41,24 @@ def build_visual(visual: Visual) -> tuple[bool, str]:
 
 
 def run_visual(visual: Visual) -> tuple[bool, str]:
-    if not visual.run_cmd:
+    command = visual.output.run_cmd or visual.run_cmd
+    if not command:
         return False, "no run command"
 
     ok, output = build_visual(visual)
     if not ok:
         return False, f"build failed:\n{output}"
 
-    log.info("running %s: %s", visual.name, visual.run_cmd)
+    log.info("running %s: %s", visual.name, command)
     try:
+        creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP") else 0
         proc = subprocess.Popen(
-            visual.run_cmd,
+            command,
             shell=True,
             cwd=str(visual.path),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=creationflags,
         )
         visual.process = proc
         visual.status = VisualStatus.RUNNING
@@ -72,8 +76,15 @@ def stop_visual(visual: Visual) -> bool:
         return True
 
     try:
-        proc.terminate()
-        proc.wait(timeout=5)
+        if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
+            subprocess.run(
+                ["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+                capture_output=True,
+                timeout=5,
+            )
+        else:
+            proc.terminate()
+            proc.wait(timeout=5)
         visual.status = VisualStatus.STOPPED
         visual.process = None
         return True
