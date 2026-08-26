@@ -2,18 +2,26 @@
 
 Terminal visual mixer — browse, build, run, and switch between visual projects across multiple frameworks. Outputs to Resolume via Spout.
 
+![Futuristic TUI with split-panel layout, status columns, and neon styling](https://img.shields.io/badge/status-active-00e5ff?style=flat-square) ![Python 3.10+](https://img.shields.io/badge/python-3.10+-3776ab?style=flat-square) ![Textual](https://img.shields.io/badge/TUI-Textual-00e5ff?style=flat-square)
+
 ## Quick Start
 
-```bash
+```powershell
 git clone https://github.com/Reimonsk8/XVCpanel.git
 cd XVCpanel
+.\install.ps1
+```
+
+Or manual:
+
+```bash
 pip install -e .
 python -m xvcpanel
 ```
 
 ## Prerequisites
 
-### Python (required for the panel itself)
+### Python (required)
 
 ```bash
 pip install textual
@@ -21,86 +29,30 @@ pip install textual
 
 ### Frameworks (install only what you need)
 
-#### openFrameworks (particles + fluid demos)
-
-1. Download from https://openframeworks.cc/download
-2. Extract to `C:\openframeworks` (Windows) or `~/openframeworks` (Mac/Linux)
-3. Set the environment variable or edit the Makefile:
-   ```bash
-   # Windows
-   set OF_ROOT=C:\openframeworks
-
-   # Mac/Linux
-   export OF_ROOT=~/openframeworks
-   ```
-4. Install the Visual Studio project generators (Windows) or use `make` (Mac/Linux)
-
-#### Nannou (wave mesh demo)
-
-```bash
-# Install Rust if you haven't
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# Verify
-cargo --version
-```
-
-#### Processing (flow field demo)
-
-1. Download from https://processing.org/download
-2. Install the CLI tool:
-   ```bash
-   # After installing Processing, add to PATH:
-   # Windows: C:\Program Files\Processing
-   # Mac: /Applications/Processing.app/Contents/MacOS
-   ```
-
-#### GLSL (warp shader demo)
-
-```bash
-# Install glslViewer
-# Mac
-brew install glslViewer
-
-# Windows — download from https://github.com/patriciogonzalezvivo/glslViewer/releases
-# Linux
-cargo install glslViewer
-```
+| Framework | Install | Demo |
+|-----------|---------|------|
+| **openFrameworks** | [openframeworks.cc/download](https://openframeworks.cc/download) → extract to `C:\openframeworks` | Particles, Fluid Sim |
+| **Nannou** | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` | Wave Mesh |
+| **Processing** | [processing.org/download](https://processing.org/download) → add to PATH | Flow Field |
+| **GLSL** | [glslViewer releases](https://github.com/patriciogonzalezvivo/glslViewer/releases) | Warp Shader |
 
 ## Usage
 
-### Launch the TUI
-
 ```bash
-python -m xvcpanel
-```
-
-### List all visuals (non-interactive)
-
-```bash
-python -m xvcpanel --list
-```
-
-### Point to a custom project root
-
-```bash
-python -m xvcpanel -d /path/to/your/visuals
-```
-
-### Verbose logging
-
-```bash
-python -m xvcpanel -v
+python -m xvcpanel          # Launch TUI
+python -m xvcpanel --list   # List all visuals
+python -m xvcpanel -d /path # Custom project root
+python -m xvcpanel -v       # Verbose logging
 ```
 
 ## TUI Controls
 
 | Key | Action |
 |-----|--------|
-| `↑↓` | Navigate visuals |
-| `Enter` | Select / show description |
+| `j` / `↓` | Move down |
+| `k` / `↑` | Move up |
+| `Enter` | Run selected visual |
 | `b` | Build selected visual |
-| `r` | Run selected visual |
 | `s` | Stop selected visual |
 | `f` | Show all frameworks |
 | `1` | Filter: openFrameworks |
@@ -111,9 +63,25 @@ python -m xvcpanel -v
 | `Esc` | Clear search |
 | `q` | Quit |
 
-## Running Demos Manually
+## Table Columns
 
-If you want to run a visual directly without the panel:
+| Column | Description |
+|--------|-------------|
+| **Status** | `○ idle` → `◉ BUILD` → `● LIVE` / `■ stopped` / `✗ error` |
+| **Name** | Visual display name |
+| **FW** | Framework abbreviation (oF, Nan, GLSL, Proc) |
+| **Tags** | Filterable tags |
+| **Spout** | `ON` if sends to Resolume |
+
+## Preview Panel
+
+Right panel shows full details for the selected visual:
+- Name, framework, status
+- Tags, description
+- Build command, run command
+- Spout status
+
+## Running Demos Manually
 
 ### Curl Noise Particles (openFrameworks)
 
@@ -149,7 +117,7 @@ cd library/glsl/warp
 glslViewer warp.frag -w 1920 -h 1080
 ```
 
-Press `F` for fullscreen, `ESC` to quit.
+**Controls:** `F` fullscreen, `ESC` quit
 
 ### Flow Field (Processing)
 
@@ -162,7 +130,7 @@ processing-java --sketch=$(pwd) --run
 
 ## Adding Your Own Visuals
 
-Each visual is a folder under `library/<framework>/<name>/` with an `xvc.json`:
+Create a folder under `library/<framework>/<name>/` with an `xvc.json`:
 
 ```json
 {
@@ -176,7 +144,7 @@ Each visual is a folder under `library/<framework>/<name>/` with an `xvc.json`:
 }
 ```
 
-### xvc.json fields
+### xvc.json Fields
 
 | Field | Required | Description |
 |-------|----------|-------------|
@@ -186,11 +154,11 @@ Each visual is a folder under `library/<framework>/<name>/` with an `xvc.json`:
 | `run` | yes | Run command |
 | `spout` | no | `true` if output goes to Spout for Resolume |
 | `tags` | no | Array of tags for filtering |
-| `description` | no | Shown when a visual is selected |
+| `description` | no | Shown in preview panel |
 
 ## Spout → Resolume
 
-On Windows, visuals with `"spout": true` send their output via Spout2. To capture in Resolume:
+On Windows, visuals with `"spout": true` send their output via Spout2.
 
 1. Install Spout2 from https://spout.leadedge.com/
 2. In Resolume, add a new **Spout** input
@@ -204,41 +172,22 @@ On Mac, use **Syphon** instead (same concept, different protocol).
 XVCpanel/
 ├── library/                    # Visual projects by framework
 │   ├── openframeworks/
-│   │   ├── particles/          # Curl noise particles
-│   │   │   ├── src/
-│   │   │   │   ├── main.cpp
-│   │   │   │   ├── ofApp.h
-│   │   │   │   └── ofApp.cpp
-│   │   │   ├── Makefile
-│   │   │   └── xvc.json
-│   │   └── fluid/              # Stable fluids sim
-│   │       ├── src/
-│   │       │   ├── main.cpp
-│   │       │   ├── ofApp.h
-│   │       │   └── ofApp.cpp
-│   │       ├── Makefile
-│   │       └── xvc.json
+│   │   ├── particles/          # Curl noise particles (8k GPU)
+│   │   └── fluid/              # Stable fluids sim (128x128)
 │   ├── nannou/
-│   │   └── wave_mesh/          # Animated mesh
-│   │       ├── src/main.rs
-│   │       ├── Cargo.toml
-│   │       └── xvc.json
+│   │   └── wave_mesh/          # Animated mesh with HSL
 │   ├── glsl/
-│   │   └── warp/               # Domain warp shader
-│   │       ├── warp.frag
-│   │       ├── warp.vert
-│   │       └── xvc.json
+│   │   └── warp/               # Domain warp shader (fbm)
 │   └── processing/
-│       └── flowfield/          # Perlin flow field
-│           ├── flowfield.pde
-│           └── xvc.json
+│       └── flowfield/          # 10k particle flow field
 ├── xvcpanel/                   # Python panel
 │   ├── __init__.py
 │   ├── __main__.py             # CLI entry point
 │   ├── models/                 # Visual, Framework, VisualStatus
 │   ├── loader/                 # Scanner + build/run runner
 │   ├── spout/                  # Spout2 bridge
-│   └── ui/                     # Textual TUI
+│   └── ui/                     # Textual TUI (split-panel, neon CSS)
+├── install.ps1                 # One-shot install & run
 ├── pyproject.toml
 └── README.md
 ```

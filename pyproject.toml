@@ -1,14 +1,33 @@
 [project]
 name = "xvcpanel"
 version = "0.1.0"
-description = "Terminal visual mixer — browse, build, run visuals → Resolume via Spout"
+description = "Terminal visual mixer — browse, build, run visuals across frameworks → Resolume via Spout"
+readme = "README.md"
 requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Reimonsk8"},
+]
+keywords = ["visual", "resolume", "spout", "tui", "openframeworks", "nannou", "glsl"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Topic :: Multimedia :: Graphics",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
     "textual>=0.80",
 ]
 
 [project.scripts]
 xvcpanel = "xvcpanel.__main__:main"
+
+[project.urls]
+Repository = "https://github.com/Reimonsk8/XVCpanel"
 
 [build-system]
 requires = ["setuptools>=68"]
