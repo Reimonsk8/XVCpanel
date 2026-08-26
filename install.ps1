@@ -60,8 +60,13 @@ Write-Host "[2/4] Installing XVCpanel..."
 & $VenvPython -m pip install -e $PSScriptRoot -q
 if ($LASTEXITCODE -ne 0) { throw "XVCpanel installation failed" }
 
-# ── Step 3: ask about runtimes ────────────────────────────────────────────────
-Write-Host "[3/4] Visual runtimes"
+# ── Step 3: health check ──────────────────────────────────────────────────────
+Write-Host "[3/5] Health check..."
+& $VenvPython (Join-Path $PSScriptRoot "test_health.py")
+if ($LASTEXITCODE -ne 0) { throw "Health check failed — fix errors before running" }
+
+# ── Step 4: ask about runtimes ────────────────────────────────────────────────
+Write-Host "[4/5] Visual runtimes"
 Write-Host ""
 Write-Host "  Which frameworks do you want to install?"
 Write-Host ""
@@ -126,8 +131,8 @@ if ($InstallGlsl) {
 Write-Host ""
 Write-Host "  openFrameworks: install manually from https://openframeworks.cc/download/"
 
-# ── Step 4: status ────────────────────────────────────────────────────────────
-Write-Host "[4/4] Runtime status..."
+# ── Step 5: status ────────────────────────────────────────────────────────────
+Write-Host "[5/5] Runtime status..."
 $LocalBins = Get-ChildItem $Tools -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue | ForEach-Object { $_.Directory.FullName } | Select-Object -Unique
 if ($LocalBins) { $env:PATH = ($LocalBins -join ";") + ";" + $env:PATH }
 foreach ($Tool in @("cargo", "processing-java", "glslViewer", "make")) {
