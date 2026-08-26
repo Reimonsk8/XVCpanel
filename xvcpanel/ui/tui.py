@@ -30,11 +30,19 @@ if TYPE_CHECKING:
 # ── Status icons ──────────────────────────────────────────────────────────────
 
 STATUS_STYLE = {
-    VisualStatus.IDLE:    "[dim]○ IDLE[/]",
-    VisualStatus.BUILDING:"[bold yellow]◉ BUILD[/]",
-    VisualStatus.RUNNING: "[bold green]● LIVE[/]",
-    VisualStatus.ERROR:   "[bold red]✗ ERR[/]",
-    VisualStatus.STOPPED: "[dim]■ STOP[/]",
+    VisualStatus.IDLE:    "[dim]○ idle[/]",
+    VisualStatus.BUILDING:"[bold yellow]◉ build[/]",
+    VisualStatus.RUNNING: "[bold green]● live[/]",
+    VisualStatus.ERROR:   "[bold red]✗ error[/]",
+    VisualStatus.STOPPED: "[dim]■ stopped[/]",
+}
+
+STATUS_SHORT = {
+    VisualStatus.IDLE:    "○ idle",
+    VisualStatus.BUILDING: "◉ BUILD",
+    VisualStatus.RUNNING: "● LIVE",
+    VisualStatus.ERROR:   "✗ ERR",
+    VisualStatus.STOPPED: "■ stop",
 }
 
 FRAMEWORK_SHORT = {
@@ -187,7 +195,7 @@ class XVCpanel(App):
 
     /* ── Left: visual list ── */
     #list-panel {
-        width: 55%;
+        width: 58%;
         border-right: tall #1a2744;
         background: #0a0e17;
     }
@@ -200,6 +208,11 @@ class XVCpanel(App):
     }
     #visual-table > .datatable--hover {
         background: #0e1628;
+    }
+    /* Status column coloring via child labels */
+    #visual-table DataTable > .datatable--cursor > Label:nth-child(1) {
+        color: #00e5ff;
+        text-style: bold;
     }
 
     /* ── Right: preview ── */
@@ -310,7 +323,7 @@ class XVCpanel(App):
 
     def on_mount(self) -> None:
         table = self.query_one("#visual-table", DataTable)
-        table.add_columns("S", "Name", "FW", "Tags")
+        table.add_columns("  Status  ", "Name", "FW", "Tags", "Spout")
         self._load_visuals()
         table.focus()
 
@@ -333,9 +346,10 @@ class XVCpanel(App):
         table = self.query_one("#visual-table", DataTable)
         table.clear()
         for v in self._filtered():
-            icon = STATUS_STYLE[v.status].split("]")[0] + "]"
+            status = STATUS_SHORT[v.status]
             tags = ", ".join(v.tags[:3]) if v.tags else "—"
-            table.add_row(icon, v.name, FRAMEWORK_SHORT.get(v.framework, "?"), tags)
+            spout = "[green]ON[/]" if v.spout else "[dim]--[/]"
+            table.add_row(status, v.name, FRAMEWORK_SHORT.get(v.framework, "?"), tags, spout)
         self._update_preview()
         self._update_status()
 
