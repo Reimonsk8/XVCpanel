@@ -7,5 +7,15 @@
   "tags": ["particles", "gpu", "noise"],
   "description": "GPU particle system driven by curl noise field",
   "requires": ["make"],
-  "install_hint": "Install openFrameworks from openframeworks.cc/download"
+  "install_hint": "Install openFrameworks from openframeworks.cc/download",
+  "outputs": [
+    { "name": "Window", "protocol": "window", "run_cmd": "./bin/particles" },
+    { "name": "Spout → Resolume", "protocol": "spout", "run_cmd": "./bin/particles" }
+  ],
+  "parameters": [
+    { "name": "particle_count", "address": "/particles/count", "min": 1000, "max": 20000, "default": 8000 },
+    { "name": "curl_scale", "address": "/particles/curl", "min": 0.1, "max": 5.0, "default": 1.0 },
+    { "name": "trail_alpha", "address": "/particles/trail", "min": 0, "max": 255, "default": 15 }
+  ],
+  "osc": { "host": "127.0.0.1", "port": 9000 }
 }

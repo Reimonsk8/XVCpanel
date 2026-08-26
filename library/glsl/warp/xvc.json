@@ -7,5 +7,15 @@
   "tags": ["warp", "effect", "frag"],
   "description": "GLSL fragment shader — domain warping with fbm",
   "requires": ["glslViewer"],
-  "install_hint": "Run .\\install.ps1 -InstallRuntimes"
+  "install_hint": "brew install glslViewer (Mac) or github.com/patriciogonzalezvivo/glslViewer/releases",
+  "outputs": [
+    { "name": "Window", "protocol": "window", "run_cmd": "glslViewer warp.frag -w 1920 -h 1080" },
+    { "name": "Spout → Resolume", "protocol": "spout", "run_cmd": "glslViewer warp.frag -w 1920 -h 1080 --spread" }
+  ],
+  "parameters": [
+    { "name": "warp_speed", "address": "/warp/speed", "min": 0.01, "max": 0.5, "default": 0.15 },
+    { "name": "fbm_octaves", "address": "/warp/octaves", "min": 1, "max": 8, "default": 6 },
+    { "name": "color_shift", "address": "/warp/color", "min": 0, "max": 1, "default": 0.5 }
+  ],
+  "osc": { "host": "127.0.0.1", "port": 9003 }
 }

@@ -7,5 +7,15 @@
   "tags": ["fluid", "sim", "navier-stokes"],
   "description": "Jos Stam stable fluids — real-time 2D fluid simulation",
   "requires": ["make"],
-  "install_hint": "Install openFrameworks from openframeworks.cc/download"
+  "install_hint": "Install openFrameworks from openframeworks.cc/download",
+  "outputs": [
+    { "name": "Window", "protocol": "window", "run_cmd": "./bin/fluid" },
+    { "name": "Spout → Resolume", "protocol": "spout", "run_cmd": "./bin/fluid" }
+  ],
+  "parameters": [
+    { "name": "diffusion", "address": "/fluid/diffusion", "min": 0.00001, "max": 0.001, "default": 0.0001 },
+    { "name": "viscosity", "address": "/fluid/viscosity", "min": 0, "max": 0.01, "default": 0 },
+    { "name": "turbulence", "address": "/fluid/turbulence", "min": 0, "max": 5, "default": 2 }
+  ],
+  "osc": { "host": "127.0.0.1", "port": 9001 }
 }

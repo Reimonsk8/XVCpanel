@@ -2,10 +2,19 @@
   "name": "Flow Field",
   "framework": "processing",
   "build": "",
-  "run": "processing-java --sketch=\"%CD%\" --run",
+  "run": "processing-java --sketch=$(pwd) --run",
   "spout": false,
   "tags": ["flowfield", "particles", "organic"],
   "description": "Perlin flow field with 10k particles",
   "requires": ["processing-java"],
-  "install_hint": "Run .\\install.ps1 -InstallRuntimes"
+  "install_hint": "Install Processing from processing.org/download and add to PATH",
+  "outputs": [
+    { "name": "Window", "protocol": "window", "run_cmd": "processing-java --sketch=$(pwd) --run" }
+  ],
+  "parameters": [
+    { "name": "particle_count", "address": "/flow/count", "min": 1000, "max": 30000, "default": 10000 },
+    { "name": "noise_scale", "address": "/flow/noise", "min": 0.001, "max": 0.1, "default": 0.01 },
+    { "name": "speed", "address": "/flow/speed", "min": 0.1, "max": 2, "default": 0.5 }
+  ],
+  "osc": { "host": "127.0.0.1", "port": 9004 }
 }
