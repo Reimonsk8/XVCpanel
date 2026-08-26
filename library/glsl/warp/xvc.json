@@ -2,7 +2,7 @@
   "name": "Warp Shader",
   "framework": "glsl",
   "build": "",
-  "run": "glslViewer shader.frag -w 1920 -h 1080",
+  "run": "glslViewer warp.frag -w 1920 -h 1080",
   "spout": true,
   "tags": ["warp", "effect", "frag"],
   "description": "GLSL fragment shader — domain warping with fbm"
