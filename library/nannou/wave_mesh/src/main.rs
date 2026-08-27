@@ -5,7 +5,8 @@ struct Model {
 }
 
 fn main() {
-    nannou::app::model()
+    nannou::app::builder()
+        .model(model)
         .update(update)
         .view(view)
         .run();

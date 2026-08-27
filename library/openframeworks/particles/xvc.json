@@ -2,7 +2,7 @@
   "name": "Curl Noise Particles",
   "framework": "openframeworks",
   "build": "",
-  "run": "./bin/particles",
+  "run": "bin\\particles",
   "spout": true,
   "tags": ["particles", "gpu", "noise"],
   "description": "GPU particle system driven by curl noise field",
