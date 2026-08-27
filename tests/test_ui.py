@@ -11,8 +11,8 @@ class AppStartupTest(unittest.IsolatedAsyncioTestCase):
         app = XVCpanel(Path("library"))
         async with app.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
-            self.assertEqual(len(app.visuals), 5)
-            self.assertEqual(app.query_one("#visual-table", DataTable).row_count, 5)
+            self.assertEqual(len(app.visuals), 8)
+            self.assertEqual(app.query_one("#visual-table", DataTable).row_count, len(app.visuals))
 
 
 if __name__ == "__main__":

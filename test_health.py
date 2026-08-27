@@ -62,11 +62,11 @@ print("[scanner]")
 def _check_scan():
     from xvcpanel.loader.scanner import scan_library
     visuals = scan_library(library)
-    assert len(visuals) >= 5, f"expected >=5 visuals, got {len(visuals)}"
+    assert len(visuals) >= 8, f"expected >=8 visuals, got {len(visuals)}"
     for v in visuals:
         assert v.name, f"visual without name: {v}"
         assert v.outputs, f"{v.name} has no outputs"
-check("scan_library finds 5+ visuals", _check_scan)
+check("scan_library finds 8+ visuals", _check_scan)
 print()
 
 # ── Runner ────────────────────────────────────────────────────────────────────

@@ -31,7 +31,7 @@ def _find_terminal():
 TERM = _find_terminal()
 
 
-def _minimal_path() -> str:
+def _minimal_path(visual_path: Path) -> str:
     """Build a short PATH with just tool dirs + Windows essentials."""
     win_root = os.environ.get("SystemRoot", r"C:\Windows")
     essential = [
@@ -39,12 +39,12 @@ def _minimal_path() -> str:
         os.path.join(win_root),
         str(Path.home() / ".cargo" / "bin"),
     ]
-    tools = Path.cwd() / ".tools"
-    if tools.is_dir():
+    tools = next((parent / ".tools" for parent in (visual_path, *visual_path.parents) if (parent / ".tools").is_dir()), None)
+    if tools:
         for exe in tools.rglob("glslViewer.exe"):
             if exe.is_file():
                 essential.append(str(exe.parent))
-        for exe in tools.rglob("processing-java.exe"):
+        for exe in tools.rglob("Processing.exe"):
             if exe.is_file():
                 essential.append(str(exe.parent))
         proc_dir = tools / "processing" / "Processing"
@@ -101,7 +101,7 @@ def run_visual(visual: Visual) -> tuple[bool, str]:
             bat = os.path.join(tempfile.gettempdir(), f"xvc_{visual.name}.bat")
             with open(bat, "w") as f:
                 f.write("@echo off\n")
-                f.write('set "PATH=' + _minimal_path() + '"\n')
+                f.write('set "PATH=' + _minimal_path(visual.path) + '"\n')
                 f.write("cd /d " + cwd + "\n")
                 f.write(run + "\n")
 

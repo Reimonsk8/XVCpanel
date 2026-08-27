@@ -1,5 +1,5 @@
 // XVCpanel — Flow Field
-// Run with: processing-java --sketch=%CD% --run
+// Run with: Processing.exe --sketch=%CD% --run
 
 int W = 1920;
 int H = 1080;

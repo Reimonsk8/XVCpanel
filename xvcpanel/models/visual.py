@@ -13,6 +13,18 @@ class Framework(str, enum.Enum):
     GLSL = "glsl"
     THREEJS = "threejs"
     CINDER = "cinder"
+    TOUCHDESIGNER = "touchdesigner"
+    VVVV = "vvvv"
+    HYDRA = "hydra"
+    P5JS = "p5js"
+    MAX = "max"
+    RESOLUME_WIRE = "resolume-wire"
+    NOTCH = "notch"
+    UNITY = "unity"
+    UNREAL = "unreal"
+    GODOT = "godot"
+    LOVE2D = "love2d"
+    ISF = "isf"
     CUSTOM = "custom"
 
 

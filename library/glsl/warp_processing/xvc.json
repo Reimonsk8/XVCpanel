@@ -2,14 +2,14 @@
   "name": "Warp Shader",
   "framework": "processing",
   "build": "",
-  "run": "processing cli --sketch=. --run",
+  "run": "Processing.exe --sketch=. --run",
   "spout": true,
   "tags": ["warp", "effect", "frag", "shader"],
   "description": "GLSL domain warping with fbm — via Processing",
   "requires": [],
   "install_hint": "Install Processing from processing.org/download",
   "outputs": [
-    { "name": "Window", "protocol": "window", "run_cmd": "processing cli --sketch=. --run" }
+    { "name": "Window", "protocol": "window", "run_cmd": "Processing.exe --sketch=. --run" }
   ],
   "parameters": [
     { "name": "warp_speed", "address": "/warp/speed", "min": 0.01, "max": 0.5, "default": 0.15 },

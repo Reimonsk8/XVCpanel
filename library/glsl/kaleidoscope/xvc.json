@@ -1,0 +1,13 @@
+{
+  "name": "Kaleidoscope",
+  "framework": "glsl",
+  "build": "",
+  "run": "glslViewer kaleidoscope.frag -w 1920 -h 1080",
+  "tags": ["kaleidoscope", "color", "feedback", "loop"],
+  "description": "Rotating mirrored color field for projection and LED surfaces",
+  "requires": ["glslViewer"],
+  "install_hint": "Run install.ps1 -InstallRuntimes -NoLaunch",
+  "outputs": [
+    {"name": "Window", "protocol": "window", "run_cmd": "glslViewer kaleidoscope.frag -w 1920 -h 1080"}
+  ]
+}

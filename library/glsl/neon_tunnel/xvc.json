@@ -1,0 +1,13 @@
+{
+  "name": "Neon Tunnel",
+  "framework": "glsl",
+  "build": "",
+  "run": "glslViewer neon_tunnel.frag -w 1920 -h 1080",
+  "tags": ["tunnel", "neon", "geometric", "loop"],
+  "description": "Infinite neon tunnel with a beat-ready radial pulse",
+  "requires": ["glslViewer"],
+  "install_hint": "Run install.ps1 -InstallRuntimes -NoLaunch",
+  "outputs": [
+    {"name": "Window", "protocol": "window", "run_cmd": "glslViewer neon_tunnel.frag -w 1920 -h 1080"}
+  ]
+}

@@ -26,6 +26,18 @@ FW_SHORT = {
     Framework.GLSL: "GLSL",
     Framework.THREEJS: "3.js",
     Framework.CINDER: "Cin",
+    Framework.TOUCHDESIGNER: "TD",
+    Framework.VVVV: "vvvv",
+    Framework.HYDRA: "Hydra",
+    Framework.P5JS: "p5",
+    Framework.MAX: "Max",
+    Framework.RESOLUME_WIRE: "Wire",
+    Framework.NOTCH: "Notch",
+    Framework.UNITY: "Unity",
+    Framework.UNREAL: "Unreal",
+    Framework.GODOT: "Godot",
+    Framework.LOVE2D: "Love",
+    Framework.ISF: "ISF",
     Framework.CUSTOM: "???",
 }
 
@@ -216,7 +228,7 @@ class XVCpanel(App):
                     s = str(exe.parent)
                     if s not in os.environ["PATH"]:
                         os.environ["PATH"] = f"{s}{sep}{os.environ['PATH']}"
-            for exe in tools.rglob("processing-java*"):
+            for exe in tools.rglob("Processing.exe"):
                 if exe.is_file():
                     s = str(exe.parent)
                     if s not in os.environ["PATH"]:
