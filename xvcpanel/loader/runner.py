@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import logging
+import os
+import shutil
 import subprocess
 from pathlib import Path
 
 from xvcpanel.models.visual import Visual, VisualStatus
 
 log = logging.getLogger(__name__)
+
+WT = shutil.which("wt")
 
 
 def build_visual(visual: Visual) -> tuple[bool, str]:
@@ -53,12 +57,20 @@ def run_visual(visual: Visual) -> tuple[bool, str]:
 
     log.info("running %s: %s", visual.name, command)
     try:
-        flags = subprocess.CREATE_NEW_CONSOLE if hasattr(subprocess, "CREATE_NEW_CONSOLE") else 0
-        proc = subprocess.Popen(
-            f"cmd /k {command}",
-            cwd=str(visual.path),
-            creationflags=flags,
-        )
+        env = os.environ.copy()
+        cwd = str(visual.path)
+
+        if WT:
+            proc = subprocess.Popen(
+                [WT, "new-tab", "--title", visual.name, "cmd", "/k", f"cd /d {cwd} && {command}"],
+                env=env,
+            )
+        else:
+            proc = subprocess.Popen(
+                f"cmd /k cd /d {cwd} && {command}",
+                env=env,
+                creationflags=subprocess.CREATE_NEW_CONSOLE,
+            )
         visual.process = proc
         visual.status = VisualStatus.RUNNING
         return True, "started"
@@ -75,15 +87,11 @@ def stop_visual(visual: Visual) -> bool:
         return True
 
     try:
-        if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
-            subprocess.run(
-                ["taskkill", "/PID", str(proc.pid), "/T", "/F"],
-                capture_output=True,
-                timeout=5,
-            )
-        else:
-            proc.terminate()
-            proc.wait(timeout=5)
+        subprocess.run(
+            ["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+            capture_output=True,
+            timeout=5,
+        )
         visual.status = VisualStatus.STOPPED
         visual.process = None
         return True
