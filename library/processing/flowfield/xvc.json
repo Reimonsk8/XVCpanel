@@ -2,7 +2,7 @@
   "name": "Flow Field",
   "framework": "processing",
   "build": "",
-  "run": "processing-java --sketch=. --run",
+  "run": "echo Processing requires processing-java CLI. Install Processing IDE to PATH.",
   "spout": false,
   "tags": ["flowfield", "particles", "organic"],
   "description": "Perlin flow field with 10k particles",
