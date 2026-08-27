@@ -206,12 +206,17 @@ class XVCpanel(App):
 
     def _bootstrap_path(self) -> None:
         import os
+        from pathlib import Path
         tools = self.library_path.parent / ".tools"
         if tools.is_dir():
-            for exe in tools.rglob("*.exe"):
-                d = str(exe.parent)
-                if d not in os.environ["PATH"]:
-                    os.environ["PATH"] = d + ";" + os.environ["PATH"]
+            for d in tools.iterdir():
+                if not d.is_dir():
+                    continue
+                for child in [d] + [x for x in d.iterdir() if x.is_dir()]:
+                    if any(child.glob("*.exe")):
+                        s = str(child)
+                        if s not in os.environ["PATH"]:
+                            os.environ["PATH"] = s + ";" + os.environ["PATH"]
         cargo_bin = Path.home() / ".cargo" / "bin"
         if cargo_bin.is_dir():
             d = str(cargo_bin)
