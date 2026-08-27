@@ -41,21 +41,22 @@ def build_visual(visual: Visual) -> tuple[bool, str]:
 
 
 def run_visual(visual: Visual) -> tuple[bool, str]:
-    command = visual.output.run_cmd or visual.run_cmd
-    if not command:
+    run = visual.output.run_cmd or visual.run_cmd
+    if not run:
         return False, "no run command"
 
-    ok, output = build_visual(visual)
-    if not ok:
-        return False, f"build failed:\n{output}"
+    build = visual.build_cmd
+    if build:
+        command = f"{build} && {run}"
+    else:
+        command = run
 
     log.info("running %s: %s", visual.name, command)
     try:
-        # ponytail: Windows-only CREATE_NEW_CONSOLE. macOS: use subprocess with shell=True
         flags = subprocess.CREATE_NEW_CONSOLE if hasattr(subprocess, "CREATE_NEW_CONSOLE") else 0
         proc = subprocess.Popen(
-            f"cmd /k cd /d {visual.path} && {command}",
-            shell=True,
+            f"cmd /k {command}",
+            cwd=str(visual.path),
             creationflags=flags,
         )
         visual.process = proc
