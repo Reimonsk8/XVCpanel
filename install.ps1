@@ -43,7 +43,7 @@ Write-Host "  XVCpanel / LIVE VISUAL CONTROL"
 Write-Host ""
 
 # ── Step 1: venv ──────────────────────────────────────────────────────────────
-Write-Host "[1/4] Creating local Python environment..."
+Write-Host "[1/5] Creating local Python environment..."
 if (-not (Test-Path $VenvPython)) {
     if ($Python.Name -eq "py.exe") {
         & $Python.Source -3 -m venv (Join-Path $PSScriptRoot ".venv")
@@ -56,14 +56,14 @@ if (-not (Test-Path $VenvPython)) {
 }
 
 # ── Step 2: pip install ───────────────────────────────────────────────────────
-Write-Host "[2/4] Installing XVCpanel..."
+Write-Host "[2/5] Installing XVCpanel..."
 & $VenvPython -m pip install -e $PSScriptRoot -q
 if ($LASTEXITCODE -ne 0) { throw "XVCpanel installation failed" }
 
 # ── Step 3: health check ──────────────────────────────────────────────────────
 Write-Host "[3/5] Health check..."
 & $VenvPython (Join-Path $PSScriptRoot "test_health.py")
-if ($LASTEXITCODE -ne 0) { throw "Health check failed — fix errors before running" }
+if ($LASTEXITCODE -ne 0) { throw "Health check failed. Fix errors before running." }
 
 # ── Step 4: ask about runtimes ────────────────────────────────────────────────
 Write-Host "[4/5] Visual runtimes"
@@ -76,7 +76,7 @@ Write-Host "    [3] glslViewer           (glslViewer)      ~50 MB"
 Write-Host "    [4] All of the above"
 Write-Host "    [S] Skip all"
 Write-Host ""
-$Choice = Read-Host "  Select (1/2/3/4/S)"
+$Choice = Read-Host "  Select (1, 2, 3, 4, or S)"
 
 $InstallRust = $false
 $InstallProcessing = $false
