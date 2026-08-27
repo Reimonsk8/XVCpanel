@@ -8,6 +8,7 @@ $ProgressPreference = "SilentlyContinue"
 $Tools = Join-Path $PSScriptRoot ".tools"
 
 function Add-ToUserPath($Dir) {
+    if (-not (Test-Path $Dir)) { return }
     $Parts = [Environment]::GetEnvironmentVariable("Path", "User") -split ";"
     if ($Parts -notcontains $Dir) {
         $Parts += $Dir
@@ -15,6 +16,13 @@ function Add-ToUserPath($Dir) {
         Write-Host "  PATH + $Dir"
     }
     $env:PATH = "$Dir;$env:PATH"
+}
+
+function Add-AllToolBins {
+    if (-not (Test-Path $Tools)) { return }
+    $ExeDirs = Get-ChildItem $Tools -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue |
+        ForEach-Object { $_.Directory.FullName } | Select-Object -Unique
+    foreach ($Dir in $ExeDirs) { Add-ToUserPath $Dir }
 }
 
 function Install-GitHubZip($Repository, $AssetPattern, $Destination) {
@@ -33,27 +41,19 @@ function Install-GitHubZip($Repository, $AssetPattern, $Destination) {
     Remove-Item $Archive -Force
 }
 
-function Install-Zip($Url, $Destination) {
-    if (Test-Path $Destination) { return }
-    $Archive = Join-Path $env:TEMP ([IO.Path]::GetFileName($Url))
-    Invoke-WebRequest $Url -OutFile $Archive
-    New-Item -ItemType Directory -Force -Path $Destination | Out-Null
-    Expand-Archive $Archive -DestinationPath $Destination -Force
-    Remove-Item $Archive -Force
-}
-
 # ── Python check ──────────────────────────────────────────────────────────────
 $Python = Get-Command py -ErrorAction SilentlyContinue
 if (-not $Python) { $Python = Get-Command python -ErrorAction SilentlyContinue }
 if (-not $Python) { throw "Python 3.10+ was not found. Install it from https://python.org/downloads/" }
 $VenvPython = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
+$VenvScripts = Join-Path $PSScriptRoot ".venv\Scripts"
 
 Write-Host ""
 Write-Host "  XVCpanel / LIVE VISUAL CONTROL"
 Write-Host ""
 
 # ── Step 1: venv ──────────────────────────────────────────────────────────────
-Write-Host "[1/5] Creating local Python environment..."
+Write-Host "[1/4] Creating local Python environment..."
 if (-not (Test-Path $VenvPython)) {
     if ($Python.Name -eq "py.exe") {
         & $Python.Source -3 -m venv (Join-Path $PSScriptRoot ".venv")
@@ -66,17 +66,17 @@ if (-not (Test-Path $VenvPython)) {
 }
 
 # ── Step 2: pip install ───────────────────────────────────────────────────────
-Write-Host "[2/5] Installing XVCpanel..."
+Write-Host "[2/4] Installing XVCpanel..."
 & $VenvPython -m pip install -e $PSScriptRoot -q
 if ($LASTEXITCODE -ne 0) { throw "XVCpanel installation failed" }
 
 # ── Step 3: health check ──────────────────────────────────────────────────────
-Write-Host "[3/5] Health check..."
+Write-Host "[3/4] Health check..."
 & $VenvPython (Join-Path $PSScriptRoot "test_health.py")
 if ($LASTEXITCODE -ne 0) { throw "Health check failed. Fix errors before running." }
 
 # ── Step 4: ask about runtimes ────────────────────────────────────────────────
-Write-Host "[4/5] Visual runtimes"
+Write-Host "[4/4] Visual runtimes"
 Write-Host ""
 Write-Host "  Which frameworks do you want to install?"
 Write-Host ""
@@ -121,9 +121,8 @@ if ($InstallProcessing) {
     Write-Host "  Installing Processing..."
     try {
         Install-GitHubZip "processing/processing4" "windows-x64-portable\.zip$" (Join-Path $Tools "processing")
-        $ProcessingDir = Get-ChildItem (Join-Path $Tools "processing") -Filter "processing-java.exe" -Recurse | Select-Object -First 1 | ForEach-Object { $_.Directory.FullName }
-        if ($ProcessingDir) { Add-ToUserPath $ProcessingDir }
-        Write-Host "  ready: processing-java"
+        Add-AllToolBins
+        Write-Host "  ready: Processing"
     } catch {
         Write-Host "  WARNING: Processing download failed: $_"
     }
@@ -134,29 +133,37 @@ if ($InstallGlsl) {
     try {
         $Glsl = Join-Path $Tools "glslViewer"
         Install-GitHubZip "patriciogonzalezvivo/glslViewer" "win64-AMD64\.zip$" $Glsl
-        $GlslBin = Get-ChildItem $Glsl -Filter "glslViewer.exe" -Recurse | Select-Object -First 1 | ForEach-Object { $_.Directory.FullName }
-        if ($GlslBin) { Add-ToUserPath $GlslBin }
+        Add-AllToolBins
         Write-Host "  ready: glslViewer"
     } catch {
         Write-Host "  WARNING: glslViewer download failed: $_"
     }
 }
 
+# ── Make xvcpanel + all tools globally available ──────────────────────────────
+Write-Host ""
+Write-Host "  Making tools globally available..."
+Add-ToUserPath $VenvScripts
+Add-AllToolBins
+
 Write-Host ""
 Write-Host "  openFrameworks: install manually from https://openframeworks.cc/download/"
 
-# ── Step 5: status ────────────────────────────────────────────────────────────
-Write-Host "[5/5] Runtime status..."
-$LocalBins = Get-ChildItem $Tools -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue | ForEach-Object { $_.Directory.FullName } | Select-Object -Unique
-foreach ($Bin in $LocalBins) { Add-ToUserPath $Bin }
-foreach ($Tool in @("cargo", "processing-java", "glslViewer", "make")) {
+# ── Status ────────────────────────────────────────────────────────────────────
+Write-Host ""
+Write-Host "  Runtime status..."
+foreach ($Tool in @("cargo", "glslViewer", "make")) {
     $State = if (Get-Command $Tool -ErrorAction SilentlyContinue) { "ready" } else { "not found" }
     Write-Host "  $Tool : $State"
 }
+$Xvc = if (Get-Command xvcpanel -ErrorAction SilentlyContinue) { "ready" } else { "not found" }
+Write-Host "  xvcpanel : $Xvc"
+
+Write-Host ""
+Write-Host "  IMPORTANT: Close this terminal and open a NEW one for global commands to work."
+Write-Host "  Then you can run:  xvcpanel  (from anywhere)"
 
 if (-not $NoLaunch) {
-    Write-Host ""
-    Write-Host "  NOTE: Close and reopen your terminal for PATH changes to take effect in new windows."
     Write-Host ""
     & $VenvPython -m xvcpanel -d $PSScriptRoot
 }
