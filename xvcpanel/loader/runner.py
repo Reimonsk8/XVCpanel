@@ -7,6 +7,7 @@ import shutil
 import signal
 import subprocess
 import tempfile
+from pathlib import Path
 
 from xvcpanel.models.visual import Visual, VisualStatus
 
@@ -30,6 +31,31 @@ def _find_terminal():
 TERM = _find_terminal()
 
 
+def _minimal_path() -> str:
+    """Build a short PATH with just tool dirs + Windows essentials."""
+    win_root = os.environ.get("SystemRoot", r"C:\Windows")
+    essential = [
+        os.path.join(win_root, "System32"),
+        os.path.join(win_root),
+        str(Path.home() / ".cargo" / "bin"),
+    ]
+    tools = Path.cwd() / ".tools"
+    if tools.is_dir():
+        for exe in tools.rglob("glslViewer.exe"):
+            if exe.is_file():
+                essential.append(str(exe.parent))
+        for exe in tools.rglob("processing-java.exe"):
+            if exe.is_file():
+                essential.append(str(exe.parent))
+    seen = set()
+    result = []
+    for d in essential:
+        if d not in seen:
+            seen.add(d)
+            result.append(d)
+    return ";".join(result)
+
+
 def build_visual(visual: Visual) -> tuple[bool, str]:
     if not visual.build_cmd:
         return True, "no build command"
@@ -41,10 +67,10 @@ def build_visual(visual: Visual) -> tuple[bool, str]:
         cwd = str(visual.path)
         bat = os.path.join(tempfile.gettempdir(), f"xvc_build_{visual.name}.bat")
         with open(bat, "w") as f:
-            f.write("@echo off\n")
-            f.write('set "PATH=' + os.environ.get("PATH", "") + '"\n')
-            f.write("cd /d " + cwd + "\n")
-            f.write(visual.build_cmd + "\n")
+                f.write("@echo off\n")
+                f.write('set "PATH=' + _minimal_path() + '"\n')
+                f.write("cd /d " + cwd + "\n")
+                f.write(visual.build_cmd + "\n")
 
         if TERM == "wt":
             proc = subprocess.Popen(
@@ -97,7 +123,7 @@ def run_visual(visual: Visual) -> tuple[bool, str]:
             bat = os.path.join(tempfile.gettempdir(), f"xvc_{visual.name}.bat")
             with open(bat, "w") as f:
                 f.write("@echo off\n")
-                f.write('set "PATH=' + os.environ.get("PATH", "") + '"\n')
+                f.write('set "PATH=' + _minimal_path() + '"\n')
                 f.write("cd /d " + cwd + "\n")
                 f.write(command + "\n")
 
