@@ -1,7 +1,7 @@
 {
   "name": "Fluid Sim Stable",
   "framework": "openframeworks",
-  "build": "make",
+  "build": "",
   "run": "./bin/fluid",
   "spout": true,
   "tags": ["fluid", "sim", "navier-stokes"],

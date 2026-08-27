@@ -196,12 +196,27 @@ class XVCpanel(App):
         yield Label(" j/k move  Enter run  b build  s stop  o route  brackets control  -/= value  m LFO  / search", id="help-bar")
 
     def on_mount(self) -> None:
+        self._bootstrap_path()
         table = self.query_one("#visual-table", DataTable)
         table.add_columns("State", "Name", "FW", "Output", "Controls", "Tags")
         self.visuals = scan_library(self.library_path)
         self._refresh()
         self.set_interval(0.05, self._tick_modulation)
         table.focus()
+
+    def _bootstrap_path(self) -> None:
+        import os
+        tools = self.library_path.parent / ".tools"
+        if tools.is_dir():
+            for exe in tools.rglob("*.exe"):
+                d = str(exe.parent)
+                if d not in os.environ["PATH"]:
+                    os.environ["PATH"] = d + ";" + os.environ["PATH"]
+        cargo_bin = Path.home() / ".cargo" / "bin"
+        if cargo_bin.is_dir():
+            d = str(cargo_bin)
+            if d not in os.environ["PATH"]:
+                os.environ["PATH"] = d + ";" + os.environ["PATH"]
 
     def _filtered(self) -> list[Visual]:
         r = self.visuals

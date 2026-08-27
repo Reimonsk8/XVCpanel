@@ -1,7 +1,7 @@
 {
   "name": "Curl Noise Particles",
   "framework": "openframeworks",
-  "build": "make",
+  "build": "",
   "run": "./bin/particles",
   "spout": true,
   "tags": ["particles", "gpu", "noise"],
