@@ -7,6 +7,16 @@ $ProgressPreference = "SilentlyContinue"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $Tools = Join-Path $PSScriptRoot ".tools"
 
+function Add-ToUserPath($Dir) {
+    $Parts = [Environment]::GetEnvironmentVariable("Path", "User") -split ";"
+    if ($Parts -notcontains $Dir) {
+        $Parts += $Dir
+        [Environment]::SetEnvironmentVariable("Path", ($Parts -join ";"), "User")
+        Write-Host "  PATH + $Dir"
+    }
+    $env:PATH = "$Dir;$env:PATH"
+}
+
 function Install-GitHubZip($Repository, $AssetPattern, $Destination) {
     if (Test-Path $Destination) {
         Write-Host "  ready: $Destination"
@@ -102,8 +112,8 @@ if ($InstallRust) {
         & $Rustup -y
         if ($LASTEXITCODE -ne 0) { throw "Rust installation failed" }
         Remove-Item $Rustup -Force
-        $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
     }
+    Add-ToUserPath "$env:USERPROFILE\.cargo\bin"
     Write-Host "  ready: cargo"
 }
 
@@ -111,6 +121,8 @@ if ($InstallProcessing) {
     Write-Host "  Installing Processing..."
     try {
         Install-GitHubZip "processing/processing4" "windows-x64-portable\.zip$" (Join-Path $Tools "processing")
+        $ProcessingDir = Get-ChildItem (Join-Path $Tools "processing") -Filter "processing-java.exe" -Recurse | Select-Object -First 1 | ForEach-Object { $_.Directory.FullName }
+        if ($ProcessingDir) { Add-ToUserPath $ProcessingDir }
         Write-Host "  ready: processing-java"
     } catch {
         Write-Host "  WARNING: Processing download failed: $_"
@@ -122,6 +134,8 @@ if ($InstallGlsl) {
     try {
         $Glsl = Join-Path $Tools "glslViewer"
         Install-GitHubZip "patriciogonzalezvivo/glslViewer" "win64-AMD64\.zip$" $Glsl
+        $GlslBin = Get-ChildItem $Glsl -Filter "glslViewer.exe" -Recurse | Select-Object -First 1 | ForEach-Object { $_.Directory.FullName }
+        if ($GlslBin) { Add-ToUserPath $GlslBin }
         Write-Host "  ready: glslViewer"
     } catch {
         Write-Host "  WARNING: glslViewer download failed: $_"
@@ -134,13 +148,15 @@ Write-Host "  openFrameworks: install manually from https://openframeworks.cc/do
 # ── Step 5: status ────────────────────────────────────────────────────────────
 Write-Host "[5/5] Runtime status..."
 $LocalBins = Get-ChildItem $Tools -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue | ForEach-Object { $_.Directory.FullName } | Select-Object -Unique
-if ($LocalBins) { $env:PATH = ($LocalBins -join ";") + ";" + $env:PATH }
+foreach ($Bin in $LocalBins) { Add-ToUserPath $Bin }
 foreach ($Tool in @("cargo", "processing-java", "glslViewer", "make")) {
     $State = if (Get-Command $Tool -ErrorAction SilentlyContinue) { "ready" } else { "not found" }
     Write-Host "  $Tool : $State"
 }
 
 if (-not $NoLaunch) {
+    Write-Host ""
+    Write-Host "  NOTE: Close and reopen your terminal for PATH changes to take effect in new windows."
     Write-Host ""
     & $VenvPython -m xvcpanel -d $PSScriptRoot
 }
