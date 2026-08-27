@@ -47,6 +47,9 @@ def _minimal_path() -> str:
         for exe in tools.rglob("processing-java.exe"):
             if exe.is_file():
                 essential.append(str(exe.parent))
+        proc_dir = tools / "processing" / "Processing"
+        if proc_dir.is_dir():
+            essential.append(str(proc_dir))
     seen = set()
     result = []
     for d in essential:
