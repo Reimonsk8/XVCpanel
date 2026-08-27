@@ -7,7 +7,6 @@ import shutil
 import signal
 import subprocess
 import tempfile
-from pathlib import Path
 
 from xvcpanel.models.visual import Visual, VisualStatus
 
@@ -31,29 +30,34 @@ def _find_terminal():
 TERM = _find_terminal()
 
 
-def _tool_dirs() -> list[str]:
-    """Collect directories containing tools from .tools/ and ~/.cargo/bin."""
-    dirs = []
-    tools = Path(os.environ.get("XVCPANEL_ROOT", ".")) / ".tools"
-    if tools.is_dir():
-        for exe in tools.rglob("glslViewer.exe" if IS_WINDOWS else "glslViewer"):
-            if exe.is_file():
-                dirs.append(str(exe.parent))
-        for exe in tools.rglob("processing-java*"):
-            if exe.is_file():
-                dirs.append(str(exe.parent))
-    cargo = Path.home() / ".cargo" / "bin"
-    if cargo.is_dir():
-        dirs.append(str(cargo))
-    return dirs
-
-
 def build_visual(visual: Visual) -> tuple[bool, str]:
     if not visual.build_cmd:
         return True, "no build command"
 
     visual.status = VisualStatus.BUILDING
     log.info("building %s: %s", visual.name, visual.build_cmd)
+
+    if IS_WINDOWS:
+        cwd = str(visual.path)
+        bat = os.path.join(tempfile.gettempdir(), f"xvc_build_{visual.name}.bat")
+        with open(bat, "w") as f:
+            f.write("@echo off\n")
+            f.write('set "PATH=' + os.environ.get("PATH", "") + '"\n')
+            f.write("cd /d " + cwd + "\n")
+            f.write(visual.build_cmd + "\n")
+
+        if TERM == "wt":
+            proc = subprocess.Popen(
+                ["wt", "new-tab", "--title", visual.name + " [build]", "cmd", "/k", bat],
+            )
+        else:
+            proc = subprocess.Popen(
+                ["cmd", "/k", bat],
+                creationflags=subprocess.CREATE_NEW_CONSOLE,
+            )
+        visual.process = proc
+        visual.status = VisualStatus.RUNNING
+        return True, "build started"
 
     try:
         result = subprocess.run(
@@ -64,11 +68,9 @@ def build_visual(visual: Visual) -> tuple[bool, str]:
             timeout=120,
         )
         output = result.stdout.decode(errors="replace") + result.stderr.decode(errors="replace")
-
         if result.returncode != 0:
             visual.status = VisualStatus.ERROR
             return False, output
-
         visual.status = VisualStatus.IDLE
         return True, output
     except subprocess.TimeoutExpired:
@@ -92,13 +94,12 @@ def run_visual(visual: Visual) -> tuple[bool, str]:
         cwd = str(visual.path)
 
         if IS_WINDOWS:
-            full_path = os.environ.get("PATH", "")
-            tool_path = ";".join(_tool_dirs())
-            if tool_path:
-                full_path = tool_path + ";" + full_path
             bat = os.path.join(tempfile.gettempdir(), f"xvc_{visual.name}.bat")
             with open(bat, "w") as f:
-                f.write(f'@echo off\r\nset "PATH={full_path}"\r\ncd /d {cwd}\r\n{command}\r\n')
+                f.write("@echo off\n")
+                f.write('set "PATH=' + os.environ.get("PATH", "") + '"\n')
+                f.write("cd /d " + cwd + "\n")
+                f.write(command + "\n")
 
             if TERM == "wt":
                 proc = subprocess.Popen(
@@ -110,7 +111,7 @@ def run_visual(visual: Visual) -> tuple[bool, str]:
                     creationflags=subprocess.CREATE_NEW_CONSOLE,
                 )
         else:
-            shell_cmd = f"cd {cwd} && {command}"
+            shell_cmd = "cd " + cwd + " && " + command
             if TERM == "gnome-terminal":
                 proc = subprocess.Popen(["gnome-terminal", "--", "bash", "-c", shell_cmd])
             elif TERM in ("alacritty", "kitty"):
