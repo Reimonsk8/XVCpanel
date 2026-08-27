@@ -6,10 +6,10 @@
   "spout": false,
   "tags": ["flowfield", "particles", "organic"],
   "description": "Perlin flow field with 10k particles",
-  "requires": ["processing-java"],
-  "install_hint": "Install Processing from processing.org/download and add to PATH",
+  "requires": [],
+  "install_hint": "Install Processing from processing.org/download",
   "outputs": [
-    { "name": "Window", "protocol": "window", "run_cmd": "processing-java --sketch=$(pwd) --run" }
+    { "name": "Window", "protocol": "window", "run_cmd": "processing cli --sketch=. --run" }
   ],
   "parameters": [
     { "name": "particle_count", "address": "/flow/count", "min": 1000, "max": 30000, "default": 10000 },

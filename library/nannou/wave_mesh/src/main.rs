@@ -5,19 +5,14 @@ struct Model {
 }
 
 fn main() {
-    nannou::app::builder()
-        .model(model)
+    nannou::app::Builder::new(model)
         .update(update)
         .view(view)
+        .size(1920, 1080)
         .run();
 }
 
 fn model(_app: &App) -> Model {
-    _app.new_window()
-        .size(1920, 1080)
-        .title("XVCpanel — Wave Mesh")
-        .build()
-        .unwrap();
     Model { time: 0.0 }
 }
 

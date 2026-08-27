@@ -7,7 +7,7 @@ int NUM_PARTICLES = 10000;
 int COLS = 120;
 int ROWS = 68;
 
-float[][] flowField;
+float[] flowField;
 ArrayList<PVector> particles;
 float zoff = 0;
 
