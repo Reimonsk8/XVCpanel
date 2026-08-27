@@ -286,9 +286,14 @@ class XVCpanel(App):
 
     def action_run_visual(self) -> None:
         vis = self._selected()
-        if vis and (vis.output.run_cmd or vis.run_cmd):
-            self._run(vis)
-        elif vis:
+        if not vis:
+            return
+        if vis.status == VisualStatus.BUILDING:
+            self.query_one("#status-bar").update(f" {vis.name}: build in progress...")
+            return
+        if vis.output.run_cmd or vis.run_cmd:
+            self._build_and_run(vis)
+        else:
             self.query_one("#status-bar").update(f" {vis.name}: no run command")
 
     @work(thread=True, exclusive=True, group="build")
@@ -300,7 +305,16 @@ class XVCpanel(App):
         self.call_from_thread(self._finish_action, message)
 
     @work(thread=True, exclusive=True, group="run")
-    def _run(self, vis: Visual) -> None:
+    def _build_and_run(self, vis: Visual) -> None:
+        if vis.build_cmd:
+            self.call_from_thread(self._refresh)
+            ok, output = build_visual(vis)
+            if not ok:
+                message = f" {vis.name}: build failed"
+                if output:
+                    message += f" · {output.strip().splitlines()[-1][:100]}"
+                self.call_from_thread(self._finish_action, message)
+                return
         ok, output = run_visual(vis)
         self.call_from_thread(self._finish_action, f" {vis.name}: {output if ok else 'failed · ' + output[-100:]}")
 
