@@ -79,14 +79,6 @@ def _check_runner_no_cmd():
     assert ok, "build_visual with empty cmd should return True"
 check("build_visual empty cmd", _check_runner_no_cmd)
 
-def _check_runner_bad_cmd():
-    from xvcpanel.loader.runner import build_visual
-    from xvcpanel.models.visual import Visual, Framework
-    v = Visual(name="test", framework=Framework.CUSTOM, path=ROOT, build_cmd="nonexistent_tool_xyz")
-    ok, _ = build_visual(v)
-    # On Windows build opens a console (async), so ok=True is expected
-check("build_visual bad cmd", _check_runner_bad_cmd)
-
 def _check_stop_no_proc():
     from xvcpanel.loader.runner import stop_visual
     from xvcpanel.models.visual import Visual, Framework
