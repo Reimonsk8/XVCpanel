@@ -1,5 +1,13 @@
-// XVCpanel — Domain Warp Shader (Processing + GLSL)
+// XVCpanel - Domain Warp Shader (Processing GLSL) - OSC controlled
+import java.net.*;
+import java.nio.*;
+
 PShader warpShader;
+OscIn osc;
+
+float warpSpeed = 0.15;
+float fbmOctaves = 6.0;
+float colorShift = 0.5;
 
 void settings() {
     size(1920, 1080, P2D);
@@ -7,11 +15,19 @@ void settings() {
 
 void setup() {
     warpShader = loadShader("warp.glsl");
+    osc = new OscIn(9003);
 }
 
 void draw() {
+    warpSpeed = osc.get("/warp/speed", warpSpeed);
+    fbmOctaves = osc.get("/warp/octaves", fbmOctaves);
+    colorShift = osc.get("/warp/color", colorShift);
+
     warpShader.set("resolution", float(width), float(height));
     warpShader.set("time", millis() / 1000.0);
+    warpShader.set("speed", warpSpeed);
+    warpShader.set("octaves", fbmOctaves);
+    warpShader.set("colorShift", colorShift);
     shader(warpShader);
     rect(0, 0, width, height);
     resetShader();
@@ -33,3 +49,51 @@ void keyPressed() {
 }
 
 boolean fullscreen = false;
+
+// --- minimal OSC receiver (background thread), no third-party lib ---
+class OscIn extends Thread {
+    DatagramSocket sock;
+    java.util.Map<String, Float> vals = new java.util.HashMap<>();
+
+    OscIn(int port) {
+        try {
+            sock = new DatagramSocket(port);
+            start();
+        } catch (Exception e) {
+            println("OSC listen failed on " + port + ": " + e);
+        }
+    }
+
+    public void run() {
+        byte[] buf = new byte[512];
+        while (sock != null && !sock.isClosed()) {
+            try {
+                DatagramPacket p = new DatagramPacket(buf, buf.length);
+                sock.receive(p);
+                String[] m = decode(buf, p.getLength());
+                if (m != null) vals.put(m[0], Float.parseFloat(m[1]));
+            } catch (Exception e) {
+                // ignore partial/empty packets
+            }
+        }
+    }
+
+    float get(String addr, float def) {
+        Float v;
+        synchronized (vals) { v = vals.get(addr); }
+        return v == null ? def : v;
+    }
+
+    String[] decode(byte[] b, int len) {
+        int i = 0;
+        String addr = "";
+        while (i < len && b[i] != 0) { addr += (char) b[i]; i++; }
+        if (addr.length() == 0) return null;
+        i = (i + 4) & ~3;
+        while (i < len && b[i] != 0) i++;
+        i = (i + 4) & ~3;
+        if (i + 4 > len) return null;
+        ByteBuffer bb = ByteBuffer.wrap(b, i, 4).order(ByteOrder.BIG_ENDIAN);
+        return new String[]{addr, Float.toString(bb.getFloat())};
+    }
+}

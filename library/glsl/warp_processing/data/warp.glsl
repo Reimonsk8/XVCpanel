@@ -1,4 +1,4 @@
-// XVCpanel — Domain Warp Shader (Processing GLSL)
+// XVCpanel - Domain Warp Shader (Processing GLSL) - OSC controlled
 
 #ifdef GL_ES
 precision mediump float;
@@ -10,6 +10,9 @@ uniform sampler2D texture;
 uniform vec2 texOffset;
 uniform float time;
 uniform vec2 resolution;
+uniform float speed;
+uniform float octaves;
+uniform float colorShift;
 
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -30,7 +33,9 @@ float fbm(vec2 p) {
     float v = 0.0;
     float a = 0.5;
     vec2 shift = vec2(100.0);
-    for (int i = 0; i < 6; i++) {
+    int n = int(clamp(octaves, 1.0, 8.0));
+    for (int i = 0; i < 8; i++) {
+        if (i >= n) break;
         v += a * noise(p);
         p = p * 2.0 + shift;
         a *= 0.5;
@@ -41,7 +46,7 @@ float fbm(vec2 p) {
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution.xy;
     vec2 p = uv * 3.0;
-    float t = time * 0.15;
+    float t = time * speed;
 
     vec2 q = vec2(fbm(p + vec2(0.0, 0.0) + t),
                    fbm(p + vec2(5.2, 1.3) + t * 0.7));
@@ -54,7 +59,7 @@ void main() {
     vec3 c3 = vec3(0.1, 0.8, 0.6);
     vec3 c4 = vec3(0.9, 0.6, 0.1);
 
-    vec3 col = mix(c1, c2, clamp(f * f * 2.0, 0.0, 1.0));
+    vec3 col = mix(c1, c2, clamp(f * f * 2.0 + colorShift * 0.2, 0.0, 1.0));
     col = mix(col, c3, clamp(length(q), 0.0, 1.0));
     col = mix(col, c4, clamp(length(r.x), 0.0, 1.0));
     col *= 0.8 + 0.4 * f;
