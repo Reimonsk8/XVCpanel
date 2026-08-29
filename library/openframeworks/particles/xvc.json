@@ -6,7 +6,7 @@
   "spout": true,
   "tags": ["particles", "gpu", "noise"],
   "description": "GPU particle system driven by curl noise field",
-  "requires": [],
+  "requires": ["openFrameworks"],
   "install_hint": "Install openFrameworks from openframeworks.cc/download, compile in VS",
   "outputs": [
     { "name": "Window", "protocol": "window", "run_cmd": "bin\\particles" },

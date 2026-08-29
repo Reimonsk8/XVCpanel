@@ -300,6 +300,10 @@ class XVCpanel(App):
         vis = self._selected()
         if not vis:
             return
+        if not vis.ready():
+            missing = ", ".join(vis.missing_deps())
+            self.query_one("#status-bar").update(f" {vis.name}: missing {missing} - run install.ps1")
+            return
         if vis.status == VisualStatus.BUILDING:
             self.query_one("#status-bar").update(f" {vis.name}: build in progress...")
             return

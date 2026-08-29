@@ -6,7 +6,7 @@
   "spout": true,
   "tags": ["fluid", "sim", "navier-stokes"],
   "description": "Jos Stam stable fluids — real-time 2D fluid simulation",
-  "requires": [],
+  "requires": ["openFrameworks"],
   "install_hint": "Install openFrameworks from openframeworks.cc/download, compile in VS",
   "outputs": [
     { "name": "Window", "protocol": "window", "run_cmd": "bin\\fluid" },
