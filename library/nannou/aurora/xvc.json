@@ -1,0 +1,20 @@
+{
+  "name": "Aurora",
+  "framework": "nannou",
+  "build": "cargo build --release",
+  "run": "cargo run --release",
+  "spout": false,
+  "tags": ["aurora", "ribbon", "flow", "loop"],
+  "description": "Flowing aurora ribbons over a starfield",
+  "requires": ["cargo"],
+  "install_hint": "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh",
+  "outputs": [
+    { "name": "Window", "protocol": "window", "run_cmd": "cargo run --release" }
+  ],
+  "parameters": [
+    { "name": "flow_speed", "address": "/aurora/flow", "min": 0, "max": 2, "default": 0.5 },
+    { "name": "band_count", "address": "/aurora/bands", "min": 1, "max": 8, "default": 5 },
+    { "name": "hue_shift", "address": "/aurora/hue", "min": 0, "max": 1, "default": 0.01 }
+  ],
+  "osc": { "host": "127.0.0.1", "port": 9008 }
+}

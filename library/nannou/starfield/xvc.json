@@ -1,0 +1,20 @@
+{
+  "name": "Starfield",
+  "framework": "nannou",
+  "build": "cargo build --release",
+  "run": "cargo run --release",
+  "spout": false,
+  "tags": ["stars", "space", "particles", "loop"],
+  "description": "Twinkling 3D starfield with shooting streaks",
+  "requires": ["cargo"],
+  "install_hint": "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh",
+  "outputs": [
+    { "name": "Window", "protocol": "window", "run_cmd": "cargo run --release" }
+  ],
+  "parameters": [
+    { "name": "twinkle_speed", "address": "/star/twinkle", "min": 0, "max": 4, "default": 1.5 },
+    { "name": "drift", "address": "/star/drift", "min": 0, "max": 1, "default": 0.4 },
+    { "name": "hue_shift", "address": "/star/hue", "min": 0, "max": 1, "default": 0.02 }
+  ],
+  "osc": { "host": "127.0.0.1", "port": 9007 }
+}

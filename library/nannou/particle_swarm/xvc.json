@@ -1,0 +1,20 @@
+{
+  "name": "Particle Swarm",
+  "framework": "nannou",
+  "build": "cargo build --release",
+  "run": "cargo run --release",
+  "spout": false,
+  "tags": ["particles", "orbit", "swarm", "loop"],
+  "description": "Orbiting particle swarm with trailing rings",
+  "requires": ["cargo"],
+  "install_hint": "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh",
+  "outputs": [
+    { "name": "Window", "protocol": "window", "run_cmd": "cargo run --release" }
+  ],
+  "parameters": [
+    { "name": "orbit_speed", "address": "/swarm/speed", "min": 0, "max": 2, "default": 0.5 },
+    { "name": "spread", "address": "/swarm/spread", "min": 0, "max": 1, "default": 0.6 },
+    { "name": "hue_shift", "address": "/swarm/hue", "min": 0, "max": 1, "default": 0.02 }
+  ],
+  "osc": { "host": "127.0.0.1", "port": 9009 }
+}
