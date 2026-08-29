@@ -1,0 +1,20 @@
+{
+  "name": "Neon Tunnel",
+  "framework": "processing",
+  "build": "",
+  "run": "Processing.exe cli --sketch=<SKETCH> --run",
+  "spout": true,
+  "tags": ["tunnel", "neon", "geometric", "loop", "shader"],
+  "description": "Infinite neon tunnel with a beat-ready radial pulse (via Processing)",
+  "requires": [],
+  "install_hint": "Install Processing from processing.org/download",
+  "outputs": [
+    { "name": "Window", "protocol": "window", "run_cmd": "Processing.exe cli --sketch=<SKETCH> --run" }
+  ],
+  "parameters": [
+    { "name": "ring_speed", "address": "/neon/ring", "min": 0, "max": 6, "default": 3.0 },
+    { "name": "rail_speed", "address": "/neon/rail", "min": 0, "max": 2, "default": 0.6 },
+    { "name": "pulse", "address": "/neon/pulse", "min": 0, "max": 1, "default": 0.5 }
+  ],
+  "osc": { "host": "127.0.0.1", "port": 9006 }
+}

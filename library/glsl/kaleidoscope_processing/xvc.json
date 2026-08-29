@@ -1,0 +1,20 @@
+{
+  "name": "Kaleidoscope",
+  "framework": "processing",
+  "build": "",
+  "run": "Processing.exe cli --sketch=<SKETCH> --run",
+  "spout": true,
+  "tags": ["kaleidoscope", "color", "feedback", "loop", "shader"],
+  "description": "Rotating mirrored color field for projection and LED surfaces (via Processing)",
+  "requires": [],
+  "install_hint": "Install Processing from processing.org/download",
+  "outputs": [
+    { "name": "Window", "protocol": "window", "run_cmd": "Processing.exe cli --sketch=<SKETCH> --run" }
+  ],
+  "parameters": [
+    { "name": "sector_count", "address": "/kaleido/sectors", "min": 4, "max": 32, "default": 12 },
+    { "name": "rotation_speed", "address": "/kaleido/rotate", "min": 0, "max": 1, "default": 0.12 },
+    { "name": "color_shift", "address": "/kaleido/color", "min": 0, "max": 1, "default": 0.25 }
+  ],
+  "osc": { "host": "127.0.0.1", "port": 9005 }
+}
