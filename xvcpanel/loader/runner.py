@@ -32,15 +32,19 @@ TERM = _find_terminal()
 
 
 def _minimal_path(visual_path: Path) -> str:
-    """Build a short PATH with just tool dirs + Windows essentials."""
+    """Build a short PATH with just tool dirs + Windows essentials (absolute)."""
     win_root = os.environ.get("SystemRoot", r"C:\Windows")
     essential = [
         os.path.join(win_root, "System32"),
         os.path.join(win_root),
         str(Path.home() / ".cargo" / "bin"),
     ]
-    tools = next((parent / ".tools" for parent in (visual_path, *visual_path.parents) if (parent / ".tools").is_dir()), None)
+    tools = next(
+        (parent / ".tools" for parent in (visual_path, *visual_path.parents) if (parent / ".tools").is_dir()),
+        None,
+    )
     if tools:
+        tools = Path(tools).resolve()
         for exe in tools.rglob("glslViewer.exe"):
             if exe.is_file():
                 essential.append(str(exe.parent))
@@ -67,12 +71,17 @@ def build_visual(visual: Visual) -> tuple[bool, str]:
     log.info("building %s: %s", visual.name, visual.build_cmd)
 
     try:
+        env = None
+        if IS_WINDOWS:
+            env = dict(os.environ)
+            env["PATH"] = _minimal_path(visual.path)
         result = subprocess.run(
             visual.build_cmd,
             shell=True,
             cwd=str(visual.path),
             capture_output=True,
             timeout=300,
+            env=env,
         )
         output = result.stdout.decode(errors="replace") + result.stderr.decode(errors="replace")
         if result.returncode != 0:
@@ -98,11 +107,13 @@ def run_visual(visual: Visual) -> tuple[bool, str]:
         cwd = str(visual.path)
 
         if IS_WINDOWS:
+            abs_cwd = str(Path(cwd).resolve())
+            run = run.replace("<SKETCH>", abs_cwd)
             bat = os.path.join(tempfile.gettempdir(), f"xvc_{visual.name}.bat")
             with open(bat, "w") as f:
                 f.write("@echo off\n")
                 f.write('set "PATH=' + _minimal_path(visual.path) + '"\n')
-                f.write("cd /d " + cwd + "\n")
+                f.write("cd /d " + abs_cwd + "\n")
                 f.write(run + "\n")
 
             if TERM == "wt":

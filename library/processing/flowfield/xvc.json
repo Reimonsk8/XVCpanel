@@ -2,14 +2,14 @@
   "name": "Flow Field",
   "framework": "processing",
   "build": "",
-  "run": "Processing.exe --sketch=. --run",
+  "run": "Processing.exe cli --sketch=<SKETCH> --run",
   "spout": false,
   "tags": ["flowfield", "particles", "organic"],
   "description": "Perlin flow field with 10k particles",
   "requires": [],
   "install_hint": "Install Processing from processing.org/download",
   "outputs": [
-    { "name": "Window", "protocol": "window", "run_cmd": "Processing.exe --sketch=. --run" }
+    { "name": "Window", "protocol": "window", "run_cmd": "Processing.exe cli --sketch=<SKETCH> --run" }
   ],
   "parameters": [
     { "name": "particle_count", "address": "/flow/count", "min": 1000, "max": 30000, "default": 10000 },
