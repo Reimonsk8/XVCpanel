@@ -8,7 +8,7 @@ from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, DataTable, Header, Input, Label, Rule, Select, Static, Switch
+from textual.widgets import Button, DataTable, Input, Label, Rule, Select, Static, Switch
 
 from xvcpanel.controls.osc import send_float
 from xvcpanel.loader.runner import build_visual, run_visual, stop_visual
@@ -119,37 +119,37 @@ class ParameterDeck(Static):
 class PreviewPanel(Static):
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="preview-inner"):
-            yield Label("[bold #00ff9d]NAME[/]", id="pv-name-label")
+            yield Label("[bold #8a93a6]NAME[/]", id="pv-name-label")
             yield Label("--", id="pv-name")
             yield Rule()
-            yield Label("[bold #00ff9d]OUTPUT ROUTE[/]", id="pv-output-label")
+            yield Label("[bold #8a93a6]OUTPUT ROUTE[/]", id="pv-output-label")
             yield Label("--", id="pv-output")
             yield Rule()
-            yield Label("[bold #00ff9d]LIVE CONTROLS[/]", id="pv-controls-label")
+            yield Label("[bold #8a93a6]LIVE CONTROLS[/]", id="pv-controls-label")
             with Vertical(id="controls-list"):
                 yield Label("[dim]No parameters declared in xvc.json[/]", id="controls-empty")
-            yield Label("[bold #00ff9d]SELECTED CONTROL[/]", id="pv-deck-label")
+            yield Label("[bold #8a93a6]SELECTED CONTROL[/]", id="pv-deck-label")
             yield ParameterDeck(id="param-deck")
             yield Rule()
-            yield Label("[bold #00ff9d]FRAMEWORK[/]", id="pv-fw-label")
+            yield Label("[bold #8a93a6]FRAMEWORK[/]", id="pv-fw-label")
             yield Label("--", id="pv-fw")
             yield Rule()
-            yield Label("[bold #00ff9d]TAGS[/]", id="pv-tags-label")
+            yield Label("[bold #8a93a6]TAGS[/]", id="pv-tags-label")
             yield Label("--", id="pv-tags")
             yield Rule()
-            yield Label("[bold #00ff9d]DESCRIPTION[/]", id="pv-desc-label")
+            yield Label("[bold #8a93a6]DESCRIPTION[/]", id="pv-desc-label")
             yield Label("--", id="pv-desc")
             yield Rule()
-            yield Label("[bold #00ff9d]REQUIRES[/]", id="pv-requires-label")
+            yield Label("[bold #8a93a6]REQUIRES[/]", id="pv-requires-label")
             yield Label("--", id="pv-requires")
             yield Rule()
-            yield Label("[bold #00ff9d]INSTALL[/]", id="pv-install-label")
+            yield Label("[bold #8a93a6]INSTALL[/]", id="pv-install-label")
             yield Label("[dim]--[/]", id="pv-install")
             yield Rule()
-            yield Label("[bold #00ff9d]BUILD[/]", id="pv-build-label")
+            yield Label("[bold #8a93a6]BUILD[/]", id="pv-build-label")
             yield Label("[dim]--[/]", id="pv-build")
             yield Rule()
-            yield Label("[bold #00ff9d]RUN[/]", id="pv-run-label")
+            yield Label("[bold #8a93a6]RUN[/]", id="pv-run-label")
             yield Label("[dim]--[/]", id="pv-run")
 
     def update_visual(self, vis: Visual | None, parameter_index: int = 0) -> None:
@@ -195,12 +195,12 @@ class PreviewPanel(Static):
         output = vis.output
         configured = "[green]CONFIGURED[/]" if output.protocol == "window" else "[yellow]APP-SIDE[/]"
         self.query_one("#pv-output", Label).update(
-            f"[bold magenta]{output.name}[/]  [dim]{output.protocol.upper()}[/]  {configured}\n"
+            f"[bold #8a93a6]{output.name}[/]  [dim]{output.protocol.upper()}[/]  {configured}\n"
             "[dim]o / Route: switch output · transport runs inside the visual[/]"
         )
-        self.query_one("#pv-fw", Label).update(f"[bold magenta]{vis.framework.value}[/]")
+        self.query_one("#pv-fw", Label).update(f"[bold #8a93a6]{vis.framework.value}[/]")
         self.query_one("#pv-tags", Label).update(
-            " ".join(f"[dim][{t}][/]" for t in vis.tags) if vis.tags else "[dim]none[/]"
+            " ".join(f"[#aeb6c6 on #161a24] {t} [/]" for t in vis.tags) if vis.tags else "[dim]none[/]"
         )
         self.query_one("#pv-desc", Label).update(vis.description or "[dim]no description[/]")
 
@@ -227,50 +227,49 @@ class PreviewPanel(Static):
 class XVCpanel(App):
     CSS = r"""
     Screen { background: #050507; }
-    #app-header { dock: top; height: 3; background: #0b0c10; border-bottom: tall #00ff9d; }
-    #app-header .header--title { color: #00ff9d; text-style: bold; }
-    #search-box { dock: top; height: 3; background: #0b0c10; border-bottom: tall #1a1c24; padding: 0 2; }
-    #search-input { background: #0d0f14; border: tall #262a33; color: #00ff9d; width: 100%; }
+    .hidden { display: none; }
+    #topbar { dock: top; height: 3; background: #0b0c10; border-bottom: tall #1a1c24; padding: 0 1; align-vertical: middle; align-horizontal: right; }
+    #app-title { width: 1fr; color: #8a93a6; text-style: bold; }
+    #btn-close { height: 1; min-width: 7; border: none; background: #12141a; color: #ff4d5e; }
+    #btn-close:hover { background: #2a1518; color: #ff5b6b; }
+    #search-box { dock: top; height: 3; background: #0b0c10; border-bottom: tall #1a1c24; padding: 0 2; align-vertical: middle; }
+    #search-input { background: #0d0f14; border: tall #262a33; color: #dfe6ee; width: 100%; }
     #search-input:focus { border: tall #00ff9d; }
-    #filter-bar { dock: top; height: 3; background: #0b0c10; border-bottom: tall #1a1c24; padding: 0 1; }
-    .fkey { color: #00ff9d; text-style: bold; }
     #main-split { height: 1fr; }
     #list-panel { width: 58%; border-right: tall #1a1c24; background: #09090c; }
     #list-panel.wide { width: 100%; border-right: none; }
     #visual-table { background: #09090c; }
     #visual-table > .datatable--cursor { background: #12201a; color: #00ff9d; }
-    #preview-panel { width: 42%; background: #0b0c10; padding: 1 2; border-left: tall #00ff9d; }
+    #preview-panel { width: 42%; background: #0b0c10; padding: 1 2; border-left: tall #1a1c24; }
     #preview-panel.hidden { display: none; }
     #preview-inner { height: 1fr; }
     #preview-inner Rule { color: #1a1c24; }
-    #status-bar { dock: bottom; height: 1; background: #00ff9d; color: #050507; text-style: bold; padding: 0 1; }
-    #action-bar { dock: bottom; width: 100%; height: 3; background: #0b0c10; border-top: tall #1a1c24; padding: 0 1; align-horizontal: left; }
-    #action-bar Button { margin: 0 1 1 0; min-width: 7; background: #0d0f14; color: #dfe6ee; border: tall #262a33; }
-    #action-bar Button:hover { border: tall #00ff9d; color: #00ff9d; }
-    #action-bar #btn-stop, #action-bar #btn-close { color: #ff4d5e; }
-    #action-bar #btn-stop:hover, #action-bar #btn-close:hover { border: tall #ff4d5e; color: #ff4d5e; }
-    #action-bar .mini { min-width: 5; }
-    #action-bar .ctx { margin: 0 0 1 0; min-width: 24; color: #5a6077; }
+    #status-bar { width: 100%; height: 1; background: #0b0c10; color: #8a93a6; padding: 0 1; }
+    #bottom-dock { dock: bottom; width: 100%; height: 4; background: #0b0c10; }
+    #action-bar { width: 100%; height: 3; background: #0b0c10; border-top: tall #1a1c24; padding: 0 1; align-horizontal: left; align-vertical: middle; }
+    #action-bar Button { margin: 0 1; min-width: 7; height: 1; border: none; background: #12141a; color: #8a93a6; padding: 0 2; }
+    #action-bar Button:hover { background: #1a2330; color: #00ff9d; }
+    #action-bar #btn-stop { color: #ff4d5e; }
+    #action-bar #btn-stop:hover { color: #ff5b6b; background: #2a1518; }
+    #action-bar .mini { min-width: 4; padding: 0 1; }
+    #action-bar .ctx { margin: 0 1; min-width: 24; color: #5a6077; height: 1; }
     #action-bar Rule { color: #1a1c24; }
-    #action-bar Label { color: #5a6077; margin: 0 1 1 0; }
+    #action-bar Label { color: #5a6077; height: 1; margin: 0 1; }
     #controls-list Button.param-row { height: 1; width: 1fr; border: none; background: transparent; color: #dfe6ee; padding: 0 1; align-horizontal: left; }
     #controls-list Button.param-row:hover { background: #0d0f14; }
     #param-deck { border: tall #1a1c24; background: #0d0f14; padding: 0 1; margin-top: 1; }
     #param-deck.hidden { display: none; }
-    #deck-jump { height: 3; }
+    #deck-jump, #deck-row, #deck-lfo, #deck-meta { height: 3; align-vertical: middle; align-horizontal: left; }
     #controls-menu { width: 1fr; }
-    #deck-row { height: 1; }
     #deck-name { color: #00ff9d; text-style: bold; width: 1fr; }
     #deck-value { color: #dfe6ee; width: 12; text-align: right; }
-    #deck-lfo { height: 3; }
-    #deck-meta { height: 3; }
-    .deck-label { color: #5a6077; margin: 0 0 1 1; }
-    #deck-lfo #rate-readout { color: #00ff9d; margin: 0 0 1 1; }
+    .deck-label { color: #8a93a6; min-width: 10; margin: 0 2 0 0; }
+    #deck-lfo #rate-readout { color: #00ff9d; width: 7; }
     #value-slider { width: 1fr; height: 3; }
     #rate-slider { width: 22; height: 3; margin-right: 2; }
     #rate-slider.static, #curve-select.static { opacity: 0.35; }
     #curve-select { width: 20; }
-    #manual-input { width: 1fr; height: 3; background: #0b0c10; color: #00ff9d; border: tall #262a33; margin: 0 0 1 0; }
+    #manual-input { width: 1fr; height: 3; background: #0b0c10; color: #dfe6ee; border: tall #262a33; margin: 0 0 1 0; }
     #manual-input:focus { border: tall #00ff9d; }
     Switch { background: #262a33; border: tall #1a1c24; }
     Switch > .switch--button { color: #ff4d5e; }
@@ -316,34 +315,34 @@ class XVCpanel(App):
         self.parameter_index: int = 0
 
     def compose(self) -> ComposeResult:
-        yield Header(id="app-header")
+        with Horizontal(id="topbar"):
+            yield Label(" XVCpanel ", id="app-title")
+            yield Button(r"\[X\]", id="btn-close")
         with Vertical(id="search-box"):
             yield Input(placeholder=" search visuals...", id="search-input")
-        with Horizontal(id="filter-bar"):
-            yield Label(" [bold #00ff9d]1[/][dim]:oF[/]  [bold #00ff9d]2[/][dim]:Nan[/]  [bold #00ff9d]3[/][dim]:GLSL[/]  [bold #00ff9d]4[/][dim]:Proc[/]  [dim]f:All[/]   ", id="filter-display")
-            yield Label("--", id="active-filter")
+        yield Label("", id="active-filter", classes="hidden")
         with Horizontal(id="main-split"):
             with Vertical(id="list-panel"):
                 yield DataTable(cursor_type="row", id="visual-table")
             with Vertical(id="preview-panel"):
                 yield PreviewPanel(id="preview")
-        yield Label(id="status-bar")
-        with Horizontal(id="action-bar"):
-            yield Button(r"\[Run\]", id="btn-run")
-            yield Button(r"\[Stop\]", id="btn-stop")
-            yield Button(r"\[Build\]", id="btn-build")
-            yield Button("Route: --", id="btn-route")
-            yield Rule(orientation="vertical")
-            yield Label("Visual: --", id="ctx-visual", classes="ctx")
-            yield Label("Param: --", id="ctx-param", classes="ctx")
-            yield Rule(orientation="vertical")
-            yield Button(r"\[<\]", id="btn-prev", classes="mini")
-            yield Button(r"\[>\]", id="btn-next", classes="mini")
-            yield Button(r"\[LFO\]", id="btn-lfo", classes="mini")
-            yield Button(r"\[r-\]", id="btn-rate-dn", classes="mini")
-            yield Button(r"\[r+\]", id="btn-rate-up", classes="mini")
-            yield Button(r"\[wv\]", id="btn-curve", classes="mini")
-            yield Button(r"\[Close\]", id="btn-close")
+        with Vertical(id="bottom-dock"):
+            yield Label(id="status-bar")
+            with Horizontal(id="action-bar"):
+                yield Button(r"\[Run\]", id="btn-run")
+                yield Button(r"\[Stop\]", id="btn-stop")
+                yield Button(r"\[Build\]", id="btn-build")
+                yield Button("Route: --", id="btn-route")
+                yield Rule(orientation="vertical")
+                yield Label("Visual: --", id="ctx-visual", classes="ctx")
+                yield Label("Param: --", id="ctx-param", classes="ctx")
+                yield Rule(orientation="vertical")
+                yield Button(r"\[<\]", id="btn-prev", classes="mini")
+                yield Button(r"\[>\]", id="btn-next", classes="mini")
+                yield Button(r"\[LFO\]", id="btn-lfo", classes="mini")
+                yield Button(r"\[r-\]", id="btn-rate-dn", classes="mini")
+                yield Button(r"\[r+\]", id="btn-rate-up", classes="mini")
+                yield Button(r"\[wv\]", id="btn-curve", classes="mini")
 
     def on_mount(self) -> None:
         self._bootstrap_path()
