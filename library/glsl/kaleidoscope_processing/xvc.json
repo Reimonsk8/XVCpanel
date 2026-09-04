@@ -1,12 +1,11 @@
 {
   "name": "Kaleidoscope",
-  "framework": "processing",
+  "framework": "glsl",
   "build": "",
   "run": "Processing.exe cli --sketch=<SKETCH> --run",
-  "spout": true,
   "tags": ["kaleidoscope", "color", "feedback", "loop", "shader"],
-  "description": "Rotating mirrored color field for projection and LED surfaces (via Processing)",
-  "requires": [],
+  "description": "Rotating mirrored color field for projection and LED surfaces (GLSL via Processing)",
+  "requires": ["Processing.exe"],
   "install_hint": "Install Processing from processing.org/download",
   "outputs": [
     { "name": "Window", "protocol": "window", "run_cmd": "Processing.exe cli --sketch=<SKETCH> --run" }

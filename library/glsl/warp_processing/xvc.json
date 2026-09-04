@@ -1,12 +1,11 @@
 {
   "name": "Warp Shader",
-  "framework": "processing",
+  "framework": "glsl",
   "build": "",
   "run": "Processing.exe cli --sketch=<SKETCH> --run",
-  "spout": true,
   "tags": ["warp", "effect", "frag", "shader"],
-  "description": "GLSL domain warping with fbm — via Processing",
-  "requires": [],
+  "description": "GLSL domain warping with fbm — GLSL via Processing",
+  "requires": ["Processing.exe"],
   "install_hint": "Install Processing from processing.org/download",
   "outputs": [
     { "name": "Window", "protocol": "window", "run_cmd": "Processing.exe cli --sketch=<SKETCH> --run" }

@@ -52,6 +52,8 @@ class Parameter:
     default: float = 0.5
     value: float = 0.5
     lfo: bool = False
+    lfo_rate: float = 0.25
+    lfo_curve: str = "sine"
 
     def set_value(self, value: float) -> None:
         self.value = min(self.maximum, max(self.minimum, value))

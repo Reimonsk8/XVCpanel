@@ -1,12 +1,11 @@
 {
   "name": "Neon Tunnel",
-  "framework": "processing",
+  "framework": "glsl",
   "build": "",
   "run": "Processing.exe cli --sketch=<SKETCH> --run",
-  "spout": true,
   "tags": ["tunnel", "neon", "geometric", "loop", "shader"],
-  "description": "Infinite neon tunnel with a beat-ready radial pulse (via Processing)",
-  "requires": [],
+  "description": "Infinite neon tunnel with a beat-ready radial pulse (GLSL via Processing)",
+  "requires": ["Processing.exe"],
   "install_hint": "Install Processing from processing.org/download",
   "outputs": [
     { "name": "Window", "protocol": "window", "run_cmd": "Processing.exe cli --sketch=<SKETCH> --run" }
