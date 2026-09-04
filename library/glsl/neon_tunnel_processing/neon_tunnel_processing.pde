@@ -4,6 +4,8 @@ import java.nio.*;
 
 PShader shader;
 OscIn osc;
+String shaderFile = "neon_tunnel.glsl";
+long lastMod = 0;
 
 float ringSpeed = 3.0;
 float railSpeed = 0.6;
@@ -14,11 +16,28 @@ void settings() {
 }
 
 void setup() {
-    shader = loadShader("neon_tunnel.glsl");
+    shader = loadShader(shaderFile);
+    lastMod = new File(sketchPath("data"), shaderFile).lastModified();
     osc = new OscIn(9006);
 }
 
+void reloadShaderIfChanged() {
+    long m = new File(sketchPath("data"), shaderFile).lastModified();
+    if (m != 0 && m != lastMod) {
+        lastMod = m;
+        PShader candidate = loadShader(shaderFile);
+        if (candidate != null) {
+            shader = candidate;
+            println("shader reloaded: " + shaderFile);
+        } else {
+            println("shader compile error - keeping previous shader");
+        }
+    }
+}
+
 void draw() {
+    reloadShaderIfChanged();
+
     ringSpeed = osc.get("/neon/ring", ringSpeed);
     railSpeed = osc.get("/neon/rail", railSpeed);
     pulse = osc.get("/neon/pulse", pulse);

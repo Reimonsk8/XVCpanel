@@ -4,6 +4,8 @@ import java.nio.*;
 
 PShader shader;
 OscIn osc;
+String shaderFile = "kaleidoscope.glsl";
+long lastMod = 0;
 
 float sectorCount = 12.0;
 float rotationSpeed = 0.12;
@@ -14,11 +16,28 @@ void settings() {
 }
 
 void setup() {
-    shader = loadShader("kaleidoscope.glsl");
+    shader = loadShader(shaderFile);
+    lastMod = new File(sketchPath("data"), shaderFile).lastModified();
     osc = new OscIn(9005);
 }
 
+void reloadShaderIfChanged() {
+    long m = new File(sketchPath("data"), shaderFile).lastModified();
+    if (m != 0 && m != lastMod) {
+        lastMod = m;
+        PShader candidate = loadShader(shaderFile);
+        if (candidate != null) {
+            shader = candidate;
+            println("shader reloaded: " + shaderFile);
+        } else {
+            println("shader compile error - keeping previous shader");
+        }
+    }
+}
+
 void draw() {
+    reloadShaderIfChanged();
+
     sectorCount = osc.get("/kaleido/sectors", sectorCount);
     rotationSpeed = osc.get("/kaleido/rotate", rotationSpeed);
     colorShift = osc.get("/kaleido/color", colorShift);

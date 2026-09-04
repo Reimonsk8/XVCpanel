@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import math
+import os
+import subprocess
 import time
 from typing import TYPE_CHECKING
 
@@ -166,13 +168,11 @@ class PreviewPanel(Static):
 
     def _update_context(self, vis: Visual | None, parameter_index: int) -> None:
         p = None
-        if vis:
-            self.app.query_one("#ctx-visual", Label).update(f"Visual: [bold white]{vis.name}[/]")
-            if vis.parameters:
-                p = vis.parameters[parameter_index % len(vis.parameters)]
-        else:
-            self.app.query_one("#ctx-visual", Label).update("Visual: --")
-        self.app.query_one("#ctx-param", Label).update(f"Param: [bold white]{p.name}[/]" if p else "Param: --")
+        if vis and vis.parameters:
+            p = vis.parameters[parameter_index % len(vis.parameters)]
+        vis_name = f"[bold]{vis.name}[/]" if vis else "--"
+        param_name = f"[bold]{p.name}[/]" if p else "--"
+        self.app.query_one("#status-bar", Label).update(f" {vis_name} · {param_name}")
 
     def refresh_values(self, vis: Visual | None, parameter_index: int = 0) -> None:
         if not vis:
@@ -251,9 +251,7 @@ class XVCpanel(App):
     #action-bar Button:hover { background: #1a2330; color: #00ff9d; }
     #action-bar #btn-stop { color: #ff4d5e; }
     #action-bar #btn-stop:hover { color: #ff5b6b; background: #2a1518; }
-    #action-bar .mini { min-width: 4; padding: 0 1; }
-    #action-bar .ctx { margin: 0 1; min-width: 24; color: #5a6077; height: 1; }
-    #action-bar Rule { color: #1a1c24; }
+    #action-bar #btn-live.active { color: #00ff9d; background: #12201a; }
     #action-bar Label { color: #5a6077; height: 1; margin: 0 1; }
     #controls-list Button.param-row { height: 1; width: 1fr; border: none; background: transparent; color: #dfe6ee; padding: 0 1; align-horizontal: left; }
     #controls-list Button.param-row:hover { background: #0d0f14; }
@@ -290,6 +288,8 @@ class XVCpanel(App):
         Binding("comma", "rate_down", "LFO −", show=False),
         Binding("period", "rate_up", "LFO +", show=False),
         Binding("c", "cycle_curve", "Curve", show=False),
+        Binding("e", "open_source", "Edit", show=True, priority=True),
+        Binding("g", "toggle_live", "Live", show=True),
         Binding("p", "toggle_preview", "Preview", show=True, priority=True),
         Binding("f", "filter_all", "All", show=True, priority=True),
         Binding("1", "filter_of", "oF", show=True, priority=True),
@@ -313,6 +313,9 @@ class XVCpanel(App):
         self.search_query: str = ""
         self.preview_visible: bool = True
         self.parameter_index: int = 0
+        self.live_mode: bool = False
+        self._live_source: Path | None = None
+        self._live_mtime: float = 0.0
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="topbar"):
@@ -332,17 +335,11 @@ class XVCpanel(App):
                 yield Button(r"\[Run\]", id="btn-run")
                 yield Button(r"\[Stop\]", id="btn-stop")
                 yield Button(r"\[Build\]", id="btn-build")
+                yield Button(r"\[edit\]", id="btn-edit")
+                yield Button(r"\[live\]", id="btn-live")
                 yield Button("Route: --", id="btn-route")
-                yield Rule(orientation="vertical")
-                yield Label("Visual: --", id="ctx-visual", classes="ctx")
-                yield Label("Param: --", id="ctx-param", classes="ctx")
-                yield Rule(orientation="vertical")
                 yield Button(r"\[<\]", id="btn-prev", classes="mini")
                 yield Button(r"\[>\]", id="btn-next", classes="mini")
-                yield Button(r"\[LFO\]", id="btn-lfo", classes="mini")
-                yield Button(r"\[r-\]", id="btn-rate-dn", classes="mini")
-                yield Button(r"\[r+\]", id="btn-rate-up", classes="mini")
-                yield Button(r"\[wv\]", id="btn-curve", classes="mini")
 
     def on_mount(self) -> None:
         self._bootstrap_path()
@@ -351,6 +348,7 @@ class XVCpanel(App):
         self.visuals = scan_library(self.library_path)
         self._refresh()
         self.set_interval(0.05, self._tick_modulation)
+        self.set_interval(0.6, self._poll_live)
         table.focus()
 
     def _bootstrap_path(self) -> None:
@@ -602,6 +600,82 @@ class XVCpanel(App):
         except (OSError, ValueError) as error:
             self.query_one("#status-bar").update(f" OSC error: {error}")
 
+    def action_open_source(self) -> None:
+        vis = self._selected()
+        src = vis.source_path if vis else None
+        if src is None:
+            self.query_one("#status-bar").update(" no editable source found for this visual")
+            return
+        editor = os.environ.get("EDITOR") or os.environ.get("VISUAL") or "notepad"
+        try:
+            subprocess.Popen(
+                ["cmd", "/c", "start", "", f'"{editor}"', f'"{str(src)}"'],
+                cwd=str(src.parent),
+            )
+        except Exception as error:
+            self.query_one("#status-bar").update(f" edit failed: {error}")
+            return
+        where = src.relative_to(self.library_path)
+        suffix = " · save to reload" if self.live_mode else ""
+        self.query_one("#status-bar").update(f" edit: {editor} {where}{suffix}")
+
+    def action_toggle_live(self) -> None:
+        self.live_mode = not self.live_mode
+        self.query_one("#btn-live", Button).set_class(self.live_mode, "active")
+        if self.live_mode:
+            vis = self._selected()
+            src = vis.source_path if vis else None
+            self._live_source = src
+            self._live_mtime = src.stat().st_mtime if src else 0.0
+            msg = (f" live ON: watching {src.relative_to(self.library_path)} — save to reload"
+                   if src else " live ON: no source file for this visual")
+        else:
+            msg = " live OFF"
+        self.query_one("#status-bar").update(msg)
+
+    def _poll_live(self) -> None:
+        if not self.live_mode:
+            return
+        vis = self._selected()
+        src = vis.source_path if vis else None
+        if src is None:
+            self._live_source = None
+            self._live_mtime = 0.0
+            return
+        if src != self._live_source:
+            self._live_source = src
+            self._live_mtime = src.stat().st_mtime
+            return
+        try:
+            mtime = src.stat().st_mtime
+        except OSError:
+            return
+        if mtime == 0.0 or mtime == self._live_mtime:
+            return
+        self._live_mtime = mtime
+        if vis.framework == Framework.GLSL:
+            self.query_one("#status-bar").update(f" {vis.name}: shader saved — hot reloading in sketch window")
+            return
+        if vis.status == VisualStatus.RUNNING:
+            self.query_one("#status-bar").update(f" {vis.name}: source saved — rebuilding + relaunching")
+            self.reload_visual(vis)
+
+    @work(thread=True, exclusive=True, group="run")
+    def reload_visual(self, vis: Visual) -> None:
+        stop_visual(vis)
+        self.call_from_thread(self._refresh)
+        if vis.build_cmd:
+            ok, output = build_visual(vis)
+            if not ok:
+                self.call_from_thread(
+                    self._finish_action,
+                    f" {vis.name}: live reload build failed · {output.strip().splitlines()[-1][:100]}",
+                )
+                return
+        ok, output = run_visual(vis)
+        msg = f" {vis.name}: live reload → {output if ok else 'FAILED · ' + output[-100:]}"
+        self.call_from_thread(self._finish_action, msg)
+
     def action_toggle_preview(self) -> None:
         self.preview_visible = not self.preview_visible
         p = self.query_one("#preview-panel")
@@ -662,6 +736,14 @@ class XVCpanel(App):
     def on_btn_build(self, event: Button.Pressed) -> None:
         self.action_build_visual()
 
+    @on(Button.Pressed, "#btn-edit")
+    def on_btn_edit(self, event: Button.Pressed) -> None:
+        self.action_open_source()
+
+    @on(Button.Pressed, "#btn-live")
+    def on_btn_live(self, event: Button.Pressed) -> None:
+        self.action_toggle_live()
+
     @on(Button.Pressed, "#btn-route")
     def on_btn_route(self, event: Button.Pressed) -> None:
         self.action_next_output()
@@ -673,22 +755,6 @@ class XVCpanel(App):
     @on(Button.Pressed, "#btn-next")
     def on_btn_next(self, event: Button.Pressed) -> None:
         self.action_next_parameter()
-
-    @on(Button.Pressed, "#btn-lfo")
-    def on_btn_lfo(self, event: Button.Pressed) -> None:
-        self.action_toggle_lfo()
-
-    @on(Button.Pressed, "#btn-rate-dn")
-    def on_btn_rate_dn(self, event: Button.Pressed) -> None:
-        self.action_rate_down()
-
-    @on(Button.Pressed, "#btn-rate-up")
-    def on_btn_rate_up(self, event: Button.Pressed) -> None:
-        self.action_rate_up()
-
-    @on(Button.Pressed, "#btn-curve")
-    def on_btn_curve(self, event: Button.Pressed) -> None:
-        self.action_cycle_curve()
 
     @on(Button.Pressed, "#btn-close")
     def on_btn_close(self, event: Button.Pressed) -> None:

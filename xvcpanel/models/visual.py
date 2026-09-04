@@ -131,3 +131,27 @@ class Visual:
     def ready(self) -> bool:
         """True if all deps are met."""
         return len(self.missing_deps()) == 0
+
+    def _source_candidates(self) -> list[str]:
+        fw = self.framework
+        if fw == Framework.GLSL:
+            return ["data/*.glsl", "*.glsl"]
+        if fw == Framework.PROCESSING:
+            return ["*.pde"]
+        if fw == Framework.NANNOU:
+            return ["src/main.rs", "*.rs"]
+        if fw == Framework.OPENFRAMEWORKS:
+            return ["src/ofApp.cpp", "src/*.cpp"]
+        return ["src/main.rs", "*.pde", "data/*.glsl", "*.glsl", "src/ofApp.cpp", "src/*.cpp"]
+
+    @property
+    def source_path(self) -> Path | None:
+        """Primary editable source file for this visual (or None)."""
+        for pattern in self._source_candidates():
+            hits = sorted(self.path.glob(pattern))
+            if hits:
+                return hits[0]
+        hits = [f for f in self.path.rglob("*")
+                if f.suffix in (".rs", ".pde", ".glsl", ".cpp", ".js", ".py")
+                and not any(part in ("target", "data") for part in f.parts)]
+        return hits[0] if hits else None

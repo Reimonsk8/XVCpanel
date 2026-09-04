@@ -68,3 +68,11 @@ Model/engine:
 - Manual numeric entry: `Input` in the deck — Enter applies a static value, disables LFO, and grays out (opacity 0.35) the LFO rate slider + curve dropdown.
 - Bug fixes: `enter` binding was `priority=True` and swallowed `Input.Submitted` (and typed Enter ran the visual) — row-run now happens via `DataTable.RowSelected`; value/LFO keys (`.` `,` `-` `=` `m` `c`) are no longer priority so typing in inputs works. Value-slider equality guard prevents programmatic tick sync from silently turning LFO off.
 - Jump-to-control dropdown: `all controls ▾` Select at the top of SELECTED CONTROL lists every parameter of the current visual; picking one switches to it directly (no step-by-step needed). Planted as `on_controls_menu` + `#controls-menu`.
+
+## 8. Livecoding: edit source, see it update
+
+`[doing]`
+- `e` / `[edit]` opens the visual's source in `$EDITOR`/`$VISUAL`/notepad (resolved via `Visual.source_path`, framework-aware).
+- `g` / `[live]` toggles a 0.6 s mtime watcher: GLSL saves hot-reload in the sketch window (sketches re-`loadShader` on mtime change, keeping the old shader on compile error); all other frameworks stop + rebuild + relaunch if the visual is running.
+- GLSL hot reload planted in `kaleidoscope_processing.pde`, `neon_tunnel_processing.pde`, `warp_processing.pde`. Shader edits are instant; `.pde`/`.rs` edits are restart-on-save (1–3 s).
+- Action bar decluttered: dropped keyboard-duplicate buttons (LFO / r- / r+ / wv) and the two ctx labels (folded into the status bar) so all pills fit at 120 columns.

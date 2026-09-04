@@ -104,8 +104,17 @@ def _check_tui_compose():
     binding_keys = {b.key for b in app.BINDINGS}
     assert "b" in binding_keys, "missing b binding"
     assert "o" in binding_keys, "missing o binding"
-    assert all(hasattr(app, n) for n in ("on_btn_close", "on_manual_input", "on_controls_menu")), "missing close/manual/menu handlers"
+    assert "e" in binding_keys, "missing e binding"
+    assert "g" in binding_keys, "missing g binding"
+    assert all(hasattr(app, n) for n in ("on_btn_close", "on_manual_input", "on_controls_menu", "on_btn_edit", "on_btn_live")), "missing close/manual/menu/edit/live handlers"
     assert hasattr(ParameterDeck, "_set_static"), "missing static-mode support"
+    from xvcpanel.models.visual import Visual, Framework
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        empty = Visual(name="x", framework=Framework.CUSTOM, path=Path(td))
+        assert empty.source_path is None, "visual with no source should resolve to None"
+    glsl = Visual(name="k", framework=Framework.GLSL, path=library / "glsl" / "kaleidoscope_processing")
+    assert glsl.source_path is not None and glsl.source_path.suffix == ".glsl", "glsl visual should resolve its .glsl"
 check("XVCpanel bindings", _check_tui_compose)
 print()
 

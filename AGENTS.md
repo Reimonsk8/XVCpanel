@@ -23,6 +23,12 @@ Windows-first TUI that scans `library/**/xvc.json` for visual projects, builds/l
 - **glslViewer is broken on Windows** (FFmpeg DLL issues); the `*_processing` GLSL sketches are the working path. Treat glslViewer bugs as known, not something to fix.
 - **openFrameworks visuals are intentionally blocked** (`requires: ["openFrameworks"]`, needs `make`/MSYS2 + `OF_ROOT`); the `ready()` gate in `tui.py:303` prevents launching. Manual setup only.
 
+## Livecoding
+
+- `e`/`[edit]` opens the selected visual's source via `$EDITOR`/`$VISUAL`/notepad. Source is resolved at runtime by `Visual.source_path` (GLSL → `data/*.glsl`, Processing → `*.pde`, Nannou → `src/*.rs`, oF → `src/ofApp.cpp`).
+- `g`/`[live]` toggles a 0.6 s mtime watcher (`_poll_live`). GLSL saves push hot-reload directly into the running sketch (the 3 `*_processing.pde` re-`loadShader()` on mtime change and keep the previous shader on compile error). Every other framework does stop → rebuild → relaunch (`reload_visual`) while the visual is running.
+- Don't "simplify" the relaunch path into calling `run_visual` alone — it would spawn a duplicate process; `reload_visual` calls `stop_visual` first.
+
 ## OSC
 
 - Sender: `xvcpanel/controls/osc.py::send_float` — big-endian f32 with `,f` tag.

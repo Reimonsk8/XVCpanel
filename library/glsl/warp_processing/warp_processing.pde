@@ -4,6 +4,8 @@ import java.nio.*;
 
 PShader warpShader;
 OscIn osc;
+String shaderFile = "warp.glsl";
+long lastMod = 0;
 
 float warpSpeed = 0.15;
 float fbmOctaves = 6.0;
@@ -14,11 +16,28 @@ void settings() {
 }
 
 void setup() {
-    warpShader = loadShader("warp.glsl");
+    warpShader = loadShader(shaderFile);
+    lastMod = new File(sketchPath("data"), shaderFile).lastModified();
     osc = new OscIn(9003);
 }
 
+void reloadShaderIfChanged() {
+    long m = new File(sketchPath("data"), shaderFile).lastModified();
+    if (m != 0 && m != lastMod) {
+        lastMod = m;
+        PShader candidate = loadShader(shaderFile);
+        if (candidate != null) {
+            warpShader = candidate;
+            println("shader reloaded: " + shaderFile);
+        } else {
+            println("shader compile error - keeping previous shader");
+        }
+    }
+}
+
 void draw() {
+    reloadShaderIfChanged();
+
     warpSpeed = osc.get("/warp/speed", warpSpeed);
     fbmOctaves = osc.get("/warp/octaves", fbmOctaves);
     colorShift = osc.get("/warp/color", colorShift);
