@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import os
+import shutil
 import subprocess
 import time
 from typing import TYPE_CHECKING
@@ -600,24 +601,53 @@ class XVCpanel(App):
         except (OSError, ValueError) as error:
             self.query_one("#status-bar").update(f" OSC error: {error}")
 
+    _CONSOLE_EDITORS = {"vim", "nvim", "lvim", "vi", "hx", "helix", "micro", "emacs"}
+
+    def _resolve_editor(self) -> str:
+        editor = (os.environ.get("EDITOR") or os.environ.get("VISUAL") or "").strip()
+        if editor:
+            return editor
+        tools_nvim = self.library_path.parent / ".tools" / "neovim" / "nvim-win64" / "bin" / "nvim.exe"
+        for candidate in [tools_nvim] + [shutil.which(c) for c in ("nvim", "lvim", "vim", "hx")]:
+            if candidate and os.path.isfile(str(candidate)):
+                return str(candidate)
+        return "notepad"
+
+    def _wt_path(self) -> str | None:
+        winapps = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WindowsApps", "wt.exe")
+        candidate = winapps if os.path.isfile(winapps) else shutil.which("wt")
+        return candidate
+
     def action_open_source(self) -> None:
         vis = self._selected()
         src = vis.source_path if vis else None
         if src is None:
             self.query_one("#status-bar").update(" no editable source found for this visual")
             return
-        editor = os.environ.get("EDITOR") or os.environ.get("VISUAL") or "notepad"
+        editor = self._resolve_editor()
+        argv = [part for part in editor.split() if part]
+        is_console = os.path.splitext(os.path.basename(argv[0]))[0].lower() in self._CONSOLE_EDITORS
+        where = src.relative_to(self.library_path)
+        suffix = " · save to reload" if self.live_mode else ""
         try:
-            subprocess.Popen(
-                ["cmd", "/c", "start", "", f'"{editor}"', f'"{str(src)}"'],
-                cwd=str(src.parent),
-            )
+            if is_console:
+                wt = self._wt_path()
+                if wt:
+                    subprocess.Popen([wt, "-w", "new", "-d", str(src.parent), "--", *argv, str(src)])
+                else:
+                    subprocess.Popen(
+                        ["cmd", "/c", "start", "", *[f'"{t}"' for t in (*argv, str(src))]],
+                        cwd=str(src.parent),
+                    )
+                label = f" edit: {' '.join(argv)} · {where}{suffix} (new terminal)"
+            else:
+                subprocess.Popen(["cmd", "/c", "start", "", f'"{editor}"', f'"{str(src)}"'],
+                                 cwd=str(src.parent))
+                label = f" edit: {editor} {where}{suffix}"
         except Exception as error:
             self.query_one("#status-bar").update(f" edit failed: {error}")
             return
-        where = src.relative_to(self.library_path)
-        suffix = " · save to reload" if self.live_mode else ""
-        self.query_one("#status-bar").update(f" edit: {editor} {where}{suffix}")
+        self.query_one("#status-bar").update(label)
 
     def action_toggle_live(self) -> None:
         self.live_mode = not self.live_mode

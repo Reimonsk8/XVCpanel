@@ -25,7 +25,7 @@ Windows-first TUI that scans `library/**/xvc.json` for visual projects, builds/l
 
 ## Livecoding
 
-- `e`/`[edit]` opens the selected visual's source via `$EDITOR`/`$VISUAL`/notepad. Source is resolved at runtime by `Visual.source_path` (GLSL → `data/*.glsl`, Processing → `*.pde`, Nannou → `src/*.rs`, oF → `src/ofApp.cpp`).
+- `e`/`[edit]` opens the selected visual's source via `$EDITOR`/`$VISUAL`, else the bundled `.tools/neovim/nvim-win64/bin/nvim.exe`, else notepad. Console editors (vim/nvim/lvim/hx/micro/...) launch inside a new Windows Terminal window (`wt` resolved at `%LOCALAPPDATA%\Microsoft\WindowsApps\wt.exe`, off-PATH aliases not found via `which`).
 - `g`/`[live]` toggles a 0.6 s mtime watcher (`_poll_live`). GLSL saves push hot-reload directly into the running sketch (the 3 `*_processing.pde` re-`loadShader()` on mtime change and keep the previous shader on compile error). Every other framework does stop → rebuild → relaunch (`reload_visual`) while the visual is running.
 - Don't "simplify" the relaunch path into calling `run_visual` alone — it would spawn a duplicate process; `reload_visual` calls `stop_visual` first.
 

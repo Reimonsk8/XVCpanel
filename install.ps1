@@ -163,6 +163,9 @@ if ($InstallGlsl) {
     Require-Command "glslViewer"
 }
 
+Install-GitHubZip "neovim/neovim" "nvim-win64\.zip$" (Join-Path $Tools "neovim")
+Add-AllToolBins
+
 Write-Stage "[5/5] Presets and global commands"
 $UsePresets = Read-PresetChoice
 if ($UsePresets) {
