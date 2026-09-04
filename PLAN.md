@@ -67,3 +67,4 @@ Model/engine:
 - Curve dropdown made prominent (`width: 20`) under "curve" label in SELECTED CONTROL.
 - Manual numeric entry: `Input` in the deck — Enter applies a static value, disables LFO, and grays out (opacity 0.35) the LFO rate slider + curve dropdown.
 - Bug fixes: `enter` binding was `priority=True` and swallowed `Input.Submitted` (and typed Enter ran the visual) — row-run now happens via `DataTable.RowSelected`; value/LFO keys (`.` `,` `-` `=` `m` `c`) are no longer priority so typing in inputs works. Value-slider equality guard prevents programmatic tick sync from silently turning LFO off.
+- Jump-to-control dropdown: `all controls ▾` Select at the top of SELECTED CONTROL lists every parameter of the current visual; picking one switches to it directly (no step-by-step needed). Planted as `on_controls_menu` + `#controls-menu`.

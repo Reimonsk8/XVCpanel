@@ -104,7 +104,7 @@ def _check_tui_compose():
     binding_keys = {b.key for b in app.BINDINGS}
     assert "b" in binding_keys, "missing b binding"
     assert "o" in binding_keys, "missing o binding"
-    assert all(hasattr(app, n) for n in ("on_btn_close", "on_manual_input")), "missing close/manual handlers"
+    assert all(hasattr(app, n) for n in ("on_btn_close", "on_manual_input", "on_controls_menu")), "missing close/manual/menu handlers"
     assert hasattr(ParameterDeck, "_set_static"), "missing static-mode support"
 check("XVCpanel bindings", _check_tui_compose)
 print()

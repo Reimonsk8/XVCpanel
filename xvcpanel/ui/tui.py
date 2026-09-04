@@ -58,6 +58,9 @@ class ParameterDeck(Static):
     """Mouse-driven controls for the selected parameter: value, LFO, rate, curve."""
 
     def compose(self) -> ComposeResult:
+        with Horizontal(id="deck-jump"):
+            yield Label("all controls", classes="deck-label")
+            yield Select([], id="controls-menu", allow_blank=True, prompt="pick a control")
         with Horizontal(id="deck-row"):
             yield Label(id="deck-name")
             yield Label(id="deck-value")
@@ -80,6 +83,9 @@ class ParameterDeck(Static):
             return
         self.remove_class("hidden")
         p = vis.parameters[index]
+        menu = self.query_one("#controls-menu", Select)
+        menu.set_options([(p.name, i) for i, p in enumerate(vis.parameters)])
+        menu.value = index
         slider = self.query_one("#value-slider", Slider)
         slider.minimum = p.minimum
         slider.maximum = p.maximum
@@ -98,6 +104,7 @@ class ParameterDeck(Static):
         if not vis or not vis.parameters or index >= len(vis.parameters):
             return
         p = vis.parameters[index]
+        self.query_one("#controls-menu", Select).value = index
         self.query_one("#value-slider", Slider).value = p.value
         self.query_one("#deck-value", Label).update(f"{p.value:7.3f}")
         self.query_one("#lfo-switch", Switch).value = p.lfo
@@ -250,6 +257,8 @@ class XVCpanel(App):
     #controls-list Button.param-row:hover { background: #0d0f14; }
     #param-deck { border: tall #1a1c24; background: #0d0f14; padding: 0 1; margin-top: 1; }
     #param-deck.hidden { display: none; }
+    #deck-jump { height: 3; }
+    #controls-menu { width: 1fr; }
     #deck-row { height: 1; }
     #deck-name { color: #00ff9d; text-style: bold; width: 1fr; }
     #deck-value { color: #dfe6ee; width: 12; text-align: right; }
@@ -736,6 +745,13 @@ class XVCpanel(App):
         if parameter and parameter.lfo and event.value:
             parameter.lfo_curve = event.value
             self.query_one("#preview", PreviewPanel).refresh_values(vis, self.parameter_index)
+
+    @on(Select.Changed, "#controls-menu")
+    def on_controls_menu(self, event: Select.Changed) -> None:
+        if not isinstance(event.value, int) or event.value == self.parameter_index:
+            return
+        self.parameter_index = event.value
+        self.query_one("#preview", PreviewPanel).update_visual(self._selected(), self.parameter_index)
 
     @on(Input.Changed, "#search-input")
     def on_search(self, event: Input.Changed) -> None:
