@@ -57,3 +57,13 @@ Model/engine:
 - Drop stale `"spout": true` flags from manifests (Spout is a stub; flags are misleading — README already says so).
 - Ensure every Processing-based manifest declares `requires: ["Processing.exe"]`.
 - (Both folded into #1's manifest edits.)
+
+## 7. Static override + UI polish
+
+`[done]`
+- Clickable `[Close]` button in the action bar exits the app.
+- All emoji glyphs removed from buttons; ASCII bracket labels (`[Run]` `[Stop]` `[Build]` `[<]` `[>]` `[Close]`).
+- Bottom bar spans full width with live context: `Visual: <name>` · `Param: <name>`.
+- Curve dropdown made prominent (`width: 20`) under "curve" label in SELECTED CONTROL.
+- Manual numeric entry: `Input` in the deck — Enter applies a static value, disables LFO, and grays out (opacity 0.35) the LFO rate slider + curve dropdown.
+- Bug fixes: `enter` binding was `priority=True` and swallowed `Input.Submitted` (and typed Enter ran the visual) — row-run now happens via `DataTable.RowSelected`; value/LFO keys (`.` `,` `-` `=` `m` `c`) are no longer priority so typing in inputs works. Value-slider equality guard prevents programmatic tick sync from silently turning LFO off.

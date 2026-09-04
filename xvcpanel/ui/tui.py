@@ -63,13 +63,16 @@ class ParameterDeck(Static):
             yield Label(id="deck-value")
         yield Slider(0.0, 1.0, 0.5, id="value-slider")
         with Horizontal(id="deck-lfo"):
-            yield Label("  LFO", classes="deck-label")
+            yield Label(" LFO", classes="deck-label")
             yield Switch(id="lfo-switch")
             yield Label("rate", classes="deck-label")
             yield Slider(0.05, 4.0, 0.25, id="rate-slider")
             yield Label(id="rate-readout")
+        with Horizontal(id="deck-meta"):
             yield Label("curve", classes="deck-label")
             yield Select([(name.capitalize(), name) for name in CURVES], value="sine", id="curve-select", compact=True, allow_blank=False)
+            yield Label("set", classes="deck-label")
+            yield Input(placeholder="numeric value + Enter = static", id="manual-input")
 
     def update_for(self, vis: Visual | None, index: int) -> None:
         if not vis or not vis.parameters or index >= len(vis.parameters):
@@ -88,6 +91,8 @@ class ParameterDeck(Static):
         rate.value = p.lfo_rate
         self.query_one("#rate-readout", Label).update(f"{p.lfo_rate:4.2f}Hz")
         self.query_one("#curve-select", Select).value = p.lfo_curve
+        self.query_one("#manual-input", Input).value = f"{p.value:g}"
+        self._set_static(not p.lfo)
 
     def refresh_values(self, vis: Visual | None, index: int) -> None:
         if not vis or not vis.parameters or index >= len(vis.parameters):
@@ -97,6 +102,11 @@ class ParameterDeck(Static):
         self.query_one("#deck-value", Label).update(f"{p.value:7.3f}")
         self.query_one("#lfo-switch", Switch).value = p.lfo
         self.query_one("#rate-readout", Label).update(f"{p.lfo_rate:4.2f}Hz")
+        self._set_static(not p.lfo)
+
+    def _set_static(self, static: bool) -> None:
+        self.query_one("#rate-slider", Slider).set_class(static, "static")
+        self.query_one("#curve-select", Select).set_class(static, "static")
 
 
 class PreviewPanel(Static):
@@ -137,6 +147,7 @@ class PreviewPanel(Static):
 
     def update_visual(self, vis: Visual | None, parameter_index: int = 0) -> None:
         self._update_info(vis)
+        self._update_context(vis, parameter_index)
         clist = self.query_one("#controls-list", Vertical)
         clist.remove_children()
         if vis and vis.parameters:
@@ -145,6 +156,16 @@ class PreviewPanel(Static):
         else:
             clist.mount(Label("[dim]No parameters declared in xvc.json[/]"))
         self.query_one("#param-deck", ParameterDeck).update_for(vis, parameter_index)
+
+    def _update_context(self, vis: Visual | None, parameter_index: int) -> None:
+        p = None
+        if vis:
+            self.app.query_one("#ctx-visual", Label).update(f"Visual: [bold white]{vis.name}[/]")
+            if vis.parameters:
+                p = vis.parameters[parameter_index % len(vis.parameters)]
+        else:
+            self.app.query_one("#ctx-visual", Label).update("Visual: --")
+        self.app.query_one("#ctx-param", Label).update(f"Param: [bold white]{p.name}[/]" if p else "Param: --")
 
     def refresh_values(self, vis: Visual | None, parameter_index: int = 0) -> None:
         if not vis:
@@ -216,12 +237,13 @@ class XVCpanel(App):
     #preview-inner { height: 1fr; }
     #preview-inner Rule { color: #1a1c24; }
     #status-bar { dock: bottom; height: 1; background: #00ff9d; color: #050507; text-style: bold; padding: 0 1; }
-    #action-bar { dock: bottom; height: 3; background: #0b0c10; border-top: tall #1a1c24; padding: 0 1; align-horizontal: left; }
-    #action-bar Button { margin: 0 1 1 0; min-width: 6; background: #0d0f14; color: #dfe6ee; border: tall #262a33; }
+    #action-bar { dock: bottom; width: 100%; height: 3; background: #0b0c10; border-top: tall #1a1c24; padding: 0 1; align-horizontal: left; }
+    #action-bar Button { margin: 0 1 1 0; min-width: 7; background: #0d0f14; color: #dfe6ee; border: tall #262a33; }
     #action-bar Button:hover { border: tall #00ff9d; color: #00ff9d; }
-    #action-bar #btn-stop { color: #ff4d5e; }
-    #action-bar #btn-stop:hover { border: tall #ff4d5e; color: #ff4d5e; }
+    #action-bar #btn-stop, #action-bar #btn-close { color: #ff4d5e; }
+    #action-bar #btn-stop:hover, #action-bar #btn-close:hover { border: tall #ff4d5e; color: #ff4d5e; }
     #action-bar .mini { min-width: 5; }
+    #action-bar .ctx { margin: 0 0 1 0; min-width: 24; color: #5a6077; }
     #action-bar Rule { color: #1a1c24; }
     #action-bar Label { color: #5a6077; margin: 0 1 1 0; }
     #controls-list Button.param-row { height: 1; width: 1fr; border: none; background: transparent; color: #dfe6ee; padding: 0 1; align-horizontal: left; }
@@ -232,11 +254,15 @@ class XVCpanel(App):
     #deck-name { color: #00ff9d; text-style: bold; width: 1fr; }
     #deck-value { color: #dfe6ee; width: 12; text-align: right; }
     #deck-lfo { height: 3; }
-    #deck-lfo .deck-label { color: #5a6077; margin: 0 0 1 1; }
+    #deck-meta { height: 3; }
+    .deck-label { color: #5a6077; margin: 0 0 1 1; }
     #deck-lfo #rate-readout { color: #00ff9d; margin: 0 0 1 1; }
     #value-slider { width: 1fr; height: 3; }
     #rate-slider { width: 22; height: 3; margin-right: 2; }
-    #curve-select { width: 14; }
+    #rate-slider.static, #curve-select.static { opacity: 0.35; }
+    #curve-select { width: 20; }
+    #manual-input { width: 1fr; height: 3; background: #0b0c10; color: #00ff9d; border: tall #262a33; margin: 0 0 1 0; }
+    #manual-input:focus { border: tall #00ff9d; }
     Switch { background: #262a33; border: tall #1a1c24; }
     Switch > .switch--button { color: #ff4d5e; }
     Switch.on > .switch--button { color: #00ff9d; }
@@ -245,18 +271,17 @@ class XVCpanel(App):
     BINDINGS = [
         Binding("j,down", "cursor_down", "down", show=True, priority=True),
         Binding("k,up", "cursor_up", "up", show=True, priority=True),
-        Binding("enter", "run_visual", "Run", show=True, priority=True),
         Binding("b", "build_visual", "Build", show=True, priority=True),
         Binding("s", "stop_visual", "Stop", show=True, priority=True),
         Binding("o", "next_output", "Output", show=True, priority=True),
         Binding("left_square_bracket", "previous_parameter", "Control", show=False, priority=True),
         Binding("right_square_bracket", "next_parameter", "Control", show=False, priority=True),
-        Binding("minus", "decrease_parameter", "Value", show=False, priority=True),
-        Binding("equals_sign", "increase_parameter", "Value", show=False, priority=True),
-        Binding("m", "toggle_lfo", "Modulate", show=True, priority=True),
-        Binding("comma", "rate_down", "LFO −", show=False, priority=True),
-        Binding("period", "rate_up", "LFO +", show=False, priority=True),
-        Binding("c", "cycle_curve", "Curve", show=False, priority=True),
+        Binding("minus", "decrease_parameter", "Value", show=False),
+        Binding("equals_sign", "increase_parameter", "Value", show=False),
+        Binding("m", "toggle_lfo", "Modulate", show=True),
+        Binding("comma", "rate_down", "LFO −", show=False),
+        Binding("period", "rate_up", "LFO +", show=False),
+        Binding("c", "cycle_curve", "Curve", show=False),
         Binding("p", "toggle_preview", "Preview", show=True, priority=True),
         Binding("f", "filter_all", "All", show=True, priority=True),
         Binding("1", "filter_of", "oF", show=True, priority=True),
@@ -295,18 +320,21 @@ class XVCpanel(App):
                 yield PreviewPanel(id="preview")
         yield Label(id="status-bar")
         with Horizontal(id="action-bar"):
-            yield Button("▶ Run", id="btn-run", classes="action")
-            yield Button("■ Stop", id="btn-stop", classes="action")
-            yield Button("⚒ Build", id="btn-build", classes="action")
-            yield Button("Route:", id="btn-route", classes="action")
+            yield Button(r"\[Run\]", id="btn-run")
+            yield Button(r"\[Stop\]", id="btn-stop")
+            yield Button(r"\[Build\]", id="btn-build")
+            yield Button("Route: --", id="btn-route")
             yield Rule(orientation="vertical")
-            yield Label(" param")
-            yield Button("◀", id="btn-prev", classes="mini")
-            yield Button("▶", id="btn-next", classes="mini")
-            yield Button("LFO", id="btn-lfo", classes="mini")
-            yield Button("r−", id="btn-rate-dn", classes="mini")
-            yield Button("r+", id="btn-rate-up", classes="mini")
-            yield Button("wv", id="btn-curve", classes="mini")
+            yield Label("Visual: --", id="ctx-visual", classes="ctx")
+            yield Label("Param: --", id="ctx-param", classes="ctx")
+            yield Rule(orientation="vertical")
+            yield Button(r"\[<\]", id="btn-prev", classes="mini")
+            yield Button(r"\[>\]", id="btn-next", classes="mini")
+            yield Button(r"\[LFO\]", id="btn-lfo", classes="mini")
+            yield Button(r"\[r-\]", id="btn-rate-dn", classes="mini")
+            yield Button(r"\[r+\]", id="btn-rate-up", classes="mini")
+            yield Button(r"\[wv\]", id="btn-curve", classes="mini")
+            yield Button(r"\[Close\]", id="btn-close")
 
     def on_mount(self) -> None:
         self._bootstrap_path()
@@ -517,13 +545,13 @@ class XVCpanel(App):
 
     def _nudge_rate(self, direction: int) -> None:
         vis, parameter = self._parameter()
-        if parameter:
+        if parameter and parameter.lfo:
             parameter.lfo_rate = round(max(0.05, min(4.0, parameter.lfo_rate + direction * 0.05)), 2)
             self.query_one("#preview", PreviewPanel).refresh_values(vis, self.parameter_index)
 
     def action_cycle_curve(self) -> None:
         vis, parameter = self._parameter()
-        if parameter:
+        if parameter and parameter.lfo:
             parameter.lfo_curve = CURVES[(CURVES.index(parameter.lfo_curve) + 1) % len(CURVES)]
             self.query_one("#preview", PreviewPanel).refresh_values(vis, self.parameter_index)
 
@@ -654,19 +682,44 @@ class XVCpanel(App):
     def on_btn_curve(self, event: Button.Pressed) -> None:
         self.action_cycle_curve()
 
+    @on(Button.Pressed, "#btn-close")
+    def on_btn_close(self, event: Button.Pressed) -> None:
+        self.exit()
+
+    @on(Input.Submitted, "#manual-input")
+    def on_manual_input(self, event: Input.Submitted) -> None:
+        vis, parameter = self._parameter()
+        if not parameter:
+            return
+        raw = event.value.strip()
+        if raw:
+            try:
+                value = float(raw)
+            except ValueError:
+                self.query_one("#status-bar").update(f" invalid number: {raw!r}")
+                return
+            parameter.lfo = False
+            parameter.set_value(value)
+            self._send_parameter(vis, parameter)
+            self.query_one("#status-bar").update(f" {parameter.name} = {parameter.value:g} (static)")
+            self.query_one("#manual-input", Input).value = ""
+        self.query_one("#preview", PreviewPanel).refresh_values(vis, self.parameter_index)
+        self.query_one("#visual-table", DataTable).focus()
+
     @on(Slider.Changed, "#value-slider")
     def on_value_slider(self, event: Slider.Changed) -> None:
         vis, parameter = self._parameter()
-        if parameter:
-            parameter.lfo = False
-            parameter.set_value(event.value)
-            self._send_parameter(vis, parameter)
-            self.query_one("#preview", PreviewPanel).refresh_values(vis, self.parameter_index)
+        if not parameter or event.value == parameter.value:
+            return
+        parameter.lfo = False
+        parameter.set_value(event.value)
+        self._send_parameter(vis, parameter)
+        self.query_one("#preview", PreviewPanel).refresh_values(vis, self.parameter_index)
 
     @on(Slider.Changed, "#rate-slider")
     def on_rate_slider(self, event: Slider.Changed) -> None:
         vis, parameter = self._parameter()
-        if parameter:
+        if parameter and parameter.lfo:
             parameter.lfo_rate = round(max(0.05, min(4.0, event.value)), 2)
             self.query_one("#preview", PreviewPanel).refresh_values(vis, self.parameter_index)
 
@@ -680,7 +733,7 @@ class XVCpanel(App):
     @on(Select.Changed, "#curve-select")
     def on_curve_select(self, event: Select.Changed) -> None:
         vis, parameter = self._parameter()
-        if parameter and event.value:
+        if parameter and parameter.lfo and event.value:
             parameter.lfo_curve = event.value
             self.query_one("#preview", PreviewPanel).refresh_values(vis, self.parameter_index)
 
@@ -691,7 +744,7 @@ class XVCpanel(App):
 
     @on(DataTable.RowSelected)
     def on_row(self, event: DataTable.RowSelected) -> None:
-        self.query_one("#preview", PreviewPanel).update_visual(self._selected(), self.parameter_index)
+        self.action_run_visual()
 
     @on(DataTable.RowHighlighted)
     def on_highlight(self, event: DataTable.RowHighlighted) -> None:

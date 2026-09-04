@@ -98,13 +98,14 @@ print()
 # ── TUI composition ───────────────────────────────────────────────────────────
 print("[tui]")
 def _check_tui_compose():
-    from xvcpanel.ui.tui import XVCpanel
+    from xvcpanel.ui.tui import XVCpanel, ParameterDeck
     app = XVCpanel(library_path=library)
     # verify bindings exist
     binding_keys = {b.key for b in app.BINDINGS}
-    assert "enter" in binding_keys, "missing enter binding"
     assert "b" in binding_keys, "missing b binding"
     assert "o" in binding_keys, "missing o binding"
+    assert all(hasattr(app, n) for n in ("on_btn_close", "on_manual_input")), "missing close/manual handlers"
+    assert hasattr(ParameterDeck, "_set_static"), "missing static-mode support"
 check("XVCpanel bindings", _check_tui_compose)
 print()
 
