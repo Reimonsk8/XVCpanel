@@ -27,6 +27,7 @@ Windows-first TUI that scans `library/**/xvc.json` for visual projects, builds/l
 
 - Sender: `xvcpanel/controls/osc.py::send_float` — big-endian f32 with `,f` tag.
 - Each Nannou visual embeds its own UDP receiver thread on a hardcoded port that must match its `xvc.json` `"osc": {"port"}`: wave_mesh 9002, starfield 9007, aurora 9008, particle_swarm 9009.
+- Processing visuals (native `.pde` + GLSL sketches) embed the same stdlib-only `OscIn` thread: flowfield 9004, kaleidoscope 9005, neon tunnel 9006, warp 9003, confetti 9010, bouncing balls 9011, sine waves 9012. Ports must stay unique and match `xvc.json`.
 
 ## Spout
 
