@@ -1,0 +1,20 @@
+{
+  "name": "Sine Waves",
+  "framework": "processing",
+  "build": "",
+  "run": "Processing.exe cli --sketch=<SKETCH> --run",
+  "spout": false,
+  "tags": ["waves", "lines", "reactive"],
+  "description": "Layerable sine waves with hue cycling",
+  "requires": ["Processing.exe"],
+  "install_hint": "Install Processing from processing.org/download",
+  "outputs": [
+    { "name": "Window", "protocol": "window", "run_cmd": "Processing.exe cli --sketch=<SKETCH> --run" }
+  ],
+  "parameters": [
+    { "name": "wave_speed", "address": "/waves/speed", "min": 0.1, "max": 8, "default": 1 },
+    { "name": "amplitude", "address": "/waves/amp", "min": 0.05, "max": 1, "default": 0.5 },
+    { "name": "layers", "address": "/waves/layers", "min": 1, "max": 12, "default": 4 }
+  ],
+  "osc": { "host": "127.0.0.1", "port": 9012 }
+}

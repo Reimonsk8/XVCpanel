@@ -1,0 +1,20 @@
+{
+  "name": "Bouncing Balls",
+  "framework": "processing",
+  "build": "",
+  "run": "Processing.exe cli --sketch=<SKETCH> --run",
+  "spout": false,
+  "tags": ["balls", "physics", "trails"],
+  "description": "Glowing elastic balls with motion trails",
+  "requires": ["Processing.exe"],
+  "install_hint": "Install Processing from processing.org/download",
+  "outputs": [
+    { "name": "Window", "protocol": "window", "run_cmd": "Processing.exe cli --sketch=<SKETCH> --run" }
+  ],
+  "parameters": [
+    { "name": "ball_count", "address": "/balls/count", "min": 2, "max": 200, "default": 24 },
+    { "name": "speed", "address": "/balls/speed", "min": 0.5, "max": 12, "default": 4 },
+    { "name": "size", "address": "/balls/size", "min": 0.3, "max": 3, "default": 1 }
+  ],
+  "osc": { "host": "127.0.0.1", "port": 9011 }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "Confetti Bursts",
+  "framework": "processing",
+  "build": "",
+  "run": "Processing.exe cli --sketch=<SKETCH> --run",
+  "spout": false,
+  "tags": ["confetti", "particles", "bursts"],
+  "description": "Colorful confetti bursts driven by OSC",
+  "requires": ["Processing.exe"],
+  "install_hint": "Install Processing from processing.org/download",
+  "outputs": [
+    { "name": "Window", "protocol": "window", "run_cmd": "Processing.exe cli --sketch=<SKETCH> --run" }
+  ],
+  "parameters": [
+    { "name": "burst_rate", "address": "/confetti/rate", "min": 0.5, "max": 30, "default": 8 },
+    { "name": "gravity", "address": "/confetti/gravity", "min": 0, "max": 0.5, "default": 0.08 },
+    { "name": "hue_shift", "address": "/confetti/hue", "min": 0, "max": 360, "default": 0 }
+  ],
+  "osc": { "host": "127.0.0.1", "port": 9010 }
+}
