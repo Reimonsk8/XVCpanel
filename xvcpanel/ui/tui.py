@@ -561,6 +561,10 @@ class XVCpanel(App):
             cand = Path(exe).resolve().parent / "wezterm.exe"
             if cand.exists():
                 return str(cand)
+        root = self.library_path.parent
+        bundled = sorted(root.glob(".tools/wezterm/*/wezterm.exe"))
+        if bundled:
+            return str(bundled[-1])
         return None
 
     def _mux(self, *argv: str, timeout: int = 15) -> subprocess.CompletedProcess:
@@ -1088,7 +1092,7 @@ class XVCpanel(App):
 
     @on(DataTable.RowSelected)
     def on_row(self, event: DataTable.RowSelected) -> None:
-        self.action_run_visual()
+        self.action_open_source()
 
     @on(DataTable.RowHighlighted)
     def on_highlight(self, event: DataTable.RowHighlighted) -> None:

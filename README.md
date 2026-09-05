@@ -108,14 +108,14 @@ The app scans `library/**/xvc.json`. The table reports `NEED <tool>` when a requ
 
 ## Running The Bundled Visuals
 
-Use `j`/`k` or the arrow keys to highlight a row and press `Enter`. XVCpanel runs a build first when the manifest has a build command.
+Use `j`/`k` or the arrow keys to highlight a row and press `Enter` to open its source in the editor. Click `[Run]` to build (when the manifest has a build command) and launch the selected visual.
 
 ### Flow Field: Processing
 
 Requirements: `Processing.exe : ready`.
 
 1. Select **Flow Field**.
-2. Press `Enter`.
+2. Click `[Run]`.
 3. Wait for the Processing window to open.
 
 Controls inside the visual:
@@ -138,7 +138,7 @@ $Processing = Get-ChildItem .\.tools\processing -Filter Processing.exe -Recurse 
 Requirements: `glslViewer : ready`.
 
 1. Select **Warp Shader**.
-2. Press `Enter`.
+2. Click `[Run]`.
 3. The shader should open at 1920x1080.
 
 The shader uses glslViewer-provided `time` and `resolution` uniforms. Close its window or press `s` in XVCpanel to stop it.
@@ -157,7 +157,7 @@ If Windows reports a missing FFmpeg DLL, remove `.tools\glslViewer` and `.tools\
 Requirements: `cargo : ready` and an internet connection for the first Cargo build.
 
 1. Select **Wave Mesh**.
-2. Press `Enter`.
+2. Click `[Run]`.
 3. Wait for Cargo to download and compile Nannou dependencies. The first build can take several minutes.
 4. Later builds reuse Cargo's cache and should be faster.
 
@@ -194,10 +194,11 @@ Download the SDK from [openframeworks.cc/download](https://openframeworks.cc/dow
 | Key | Action |
 |---|---|
 | `j` / `Down`, `k` / `Up` | Select visual |
-| `Enter` | Build if needed and run selected route |
+| `Enter`, `e` | Open selected visual's source in the editor (`:e` into the left pane inside dev.ps1, else a new window) |
 | `b` | Build selected visual |
 | `s` | Stop selected visual and its process tree |
-| `o` | Switch configured output route |
+| `o` | Toggle the preview route (`[v]`) - opens/closes the in-terminal preview pane |
+| `g` | Toggle live reload (0.6 s mtime watcher) |
 | `[` / `]` | Select exposed parameter |
 | `-` / `=` | Decrease / increase parameter |
 | `m` | Toggle a 0.25 Hz sine LFO on the parameter |
@@ -205,6 +206,22 @@ Download the SDK from [openframeworks.cc/download](https://openframeworks.cc/dow
 | `/`, `Esc` | Search / clear search |
 | `p` | Toggle details panel |
 | `q` | Quit XVCpanel |
+
+Action bar buttons: `[Run]` builds if needed and launches the route, `[Stop]` kills the process tree, `[Build]` builds only, `[edit]` opens the source, `[live]` toggles live reload, `[float]`/`[dock]` switches between the multiplexed triptych and separate windows, and `[w] [R] [v]` toggle the window / resolume / preview route per visual. Run, edit, and live also work with nothing selected (live edits the default GLSL sketch).
+
+## Dev Workflow (WezTerm Triptych)
+
+Run `dev.ps1` to open one WezTerm window with nvim on the left and the panel on the right:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\dev.ps1
+```
+
+- `Enter` or `e` in the panel types `:e <file>` into the left nvim pane and focuses it (the multiplexed edit). Outside dev.ps1 the file opens in a new terminal window instead.
+- `[v]`/`o` spawns an in-terminal Kitty preview pane watching the selected visual's `data/frame.png` (all 7 Processing visuals emit it at ~4 fps); toggling off or changing selection kills it.
+- `[float]` moves editor and preview into their own windows and closes the left pane; `[dock]` puts them back in one window.
+- `F9` zooms/restores a pane (`wezterm cli zoom-pane --pane-id <N> --toggle`).
+- Every `wezterm cli` call is logged to `%TEMP%\xvcpanel-mux.log` - check the last lines there if a pane action silently does nothing.
 
 Quitting XVCpanel does not promise to close every external renderer. Stop active visuals with `s` before quitting.
 
@@ -230,7 +247,7 @@ Example output configuration:
 ]
 ```
 
-Press `o` in XVCpanel before launching to choose between configured output commands. XVCpanel does not convert a window into Spout by itself.
+Configure which output a visual launches into in its `xvc.json` `outputs`; the `[w] [R] [v]` route buttons / `o` toggle the window, resolume, and preview routes. XVCpanel does not convert a window into Spout by itself.
 
 Use NDI for network video. Use Syphon for a native macOS renderer.
 
