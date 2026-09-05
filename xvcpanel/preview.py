@@ -16,6 +16,7 @@ from pathlib import Path
 
 INTERVAL = 0.25
 CHUNK = 4096
+STALE = 6.0
 
 # kitty cells are ~2x as tall as wide; adjust placement rows to keep aspect
 CELL_ASPECT = 2.0
@@ -68,6 +69,8 @@ def main(argv: list[str]) -> int:
         try:
             mtime = frame.stat().st_mtime
         except OSError:
+            mtime = None
+        if mtime is not None and time.time() - mtime > STALE:
             mtime = None
         if mtime is None:
             if not reported_missing:

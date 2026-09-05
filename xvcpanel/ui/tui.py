@@ -4,7 +4,9 @@ import math
 import os
 import shutil
 import subprocess
+import sys
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from textual import on, work
@@ -194,10 +196,10 @@ class PreviewPanel(Static):
             return
         self.query_one("#pv-name", Label).update(f"[bold white]{vis.name}[/]")
         output = vis.output
-        configured = "[green]CONFIGURED[/]" if output.protocol == "window" else "[yellow]APP-SIDE[/]"
+        routing = "+".join(vis.route) if vis.route else "window"
         self.query_one("#pv-output", Label).update(
-            f"[bold #8a93a6]{output.name}[/]  [dim]{output.protocol.upper()}[/]  {configured}\n"
-            "[dim]o / Route: switch output · transport runs inside the visual[/]"
+            f"[bold #8a93a6]{output.name}[/]  [dim]{output.protocol.upper()}[/]  [yellow]{routing.upper()}[/]\n"
+            "[dim]w R v toggles: window · resolume · preview on/off[/]"
         )
         self.query_one("#pv-fw", Label).update(f"[bold #8a93a6]{vis.framework.value}[/]")
         self.query_one("#pv-tags", Label).update(
@@ -249,6 +251,9 @@ class XVCpanel(App):
     #bottom-dock { dock: bottom; width: 100%; height: 4; background: #0b0c10; }
     #action-bar { width: 100%; height: 3; background: #0b0c10; border-top: tall #1a1c24; padding: 0 1; align-horizontal: left; align-vertical: middle; }
     #action-bar Button { margin: 0 1; min-width: 7; height: 1; border: none; background: #12141a; color: #8a93a6; padding: 0 2; }
+    #action-bar Button.mini { min-width: 3; padding: 0 1; }
+    #action-bar Button.btn-rt { min-width: 4; padding: 0 1; }
+    #action-bar Button.btn-rt.active { color: #00ff9d; background: #12201a; }
     #action-bar Button:hover { background: #1a2330; color: #00ff9d; }
     #action-bar #btn-stop { color: #ff4d5e; }
     #action-bar #btn-stop:hover { color: #ff5b6b; background: #2a1518; }
@@ -280,7 +285,7 @@ class XVCpanel(App):
         Binding("k,up", "cursor_up", "up", show=True, priority=True),
         Binding("b", "build_visual", "Build", show=True, priority=True),
         Binding("s", "stop_visual", "Stop", show=True, priority=True),
-        Binding("o", "next_output", "Output", show=True, priority=True),
+        Binding("o", "toggle_route_preview", "Prev(o)", show=True, priority=True),
         Binding("left_square_bracket", "previous_parameter", "Control", show=False, priority=True),
         Binding("right_square_bracket", "next_parameter", "Control", show=False, priority=True),
         Binding("minus", "decrease_parameter", "Value", show=False),
@@ -317,6 +322,7 @@ class XVCpanel(App):
         self.live_mode: bool = False
         self._live_source: Path | None = None
         self._live_mtime: float = 0.0
+        self._preview_pane_id: str | None = None
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="topbar"):
@@ -338,7 +344,9 @@ class XVCpanel(App):
                 yield Button(r"\[Build\]", id="btn-build")
                 yield Button(r"\[edit\]", id="btn-edit")
                 yield Button(r"\[live\]", id="btn-live")
-                yield Button("Route: --", id="btn-route")
+                yield Button("[w]", id="btn-rt-win", classes="btn-rt")
+                yield Button("[R]", id="btn-rt-res", classes="btn-rt")
+                yield Button("[v]", id="btn-rt-prev", classes="btn-rt")
                 yield Button(r"\[<\]", id="btn-prev", classes="mini")
                 yield Button(r"\[>\]", id="btn-next", classes="mini")
 
@@ -398,8 +406,9 @@ class XVCpanel(App):
             table.add_row(state, v.name, FW_SHORT.get(v.framework, "?"), v.output.name, params, tags)
         self.query_one("#preview", PreviewPanel).update_visual(vis, self.parameter_index)
         self._update_status_bar()
-        route = self.query_one("#btn-route", Button)
-        route.label = f"Route: {vis.output.name}" if vis else "Route:"
+        for ident, sink in (("#btn-rt-win", "window"), ("#btn-rt-res", "resolume"), ("#btn-rt-prev", "preview")):
+            btn = self.query_one(ident, Button)
+            btn.set_class(vis is not None and sink in vis.route, "active")
 
     def _update_status_bar(self) -> None:
         n = len(self.visuals)
@@ -429,12 +438,14 @@ class XVCpanel(App):
         if r < len(self._filtered()):
             t.move_cursor(row=r)
             self.query_one("#preview", PreviewPanel).update_visual(self._selected(), self.parameter_index)
+            self._retarget_preview_pane()
 
     def action_cursor_up(self) -> None:
         t = self.query_one("#visual-table", DataTable)
         r = max(0, (t.cursor_row or 1) - 1)
         t.move_cursor(row=r)
         self.query_one("#preview", PreviewPanel).update_visual(self._selected(), self.parameter_index)
+        self._retarget_preview_pane()
 
     def action_build_visual(self) -> None:
         vis = self._selected()
@@ -493,17 +504,74 @@ class XVCpanel(App):
             suffix = f" (killed pid {pid})" if ok and pid else (" (already stopped)" if pid is None else " (kill failed)")
             self._finish_action(f" {vis.name}: stopped{suffix}")
 
-    def action_next_output(self) -> None:
+    def action_toggle_route_window(self) -> None:
+        self._toggle_route_sink("window")
+
+    def action_toggle_route_resolume(self) -> None:
+        self._toggle_route_sink("resolume")
+
+    def action_toggle_route_preview(self) -> None:
+        self._toggle_route_sink("preview")
+
+    def _toggle_route_sink(self, sink: str) -> None:
         vis = self._selected()
         if not vis:
             return
-        output = vis.select_next_output()
-        if vis.status == VisualStatus.RUNNING:
-            stop_visual(vis)
-            ok, msg = run_visual(vis)
-            self._finish_action(f" {vis.name}: route → {output.name} — {'relaunched' if ok else 'RESTART FAILED · ' + msg}")
-        else:
-            self._finish_action(f" {vis.name}: route → {output.name} (applies on next run)")
+        on = vis.toggle_route(sink)
+        self._refresh()
+        note = ""
+        if sink == "preview":
+            note = " " + (self._spawn_preview_pane(vis) if on else self._close_preview_pane()).strip()
+        elif sink == "resolume" and on:
+            note = " (stub - transport TBD)"
+        self.query_one("#status-bar").update(f" {vis.name}: route {sink} {'ON' if on else 'OFF'}{note}")
+
+    def _retarget_preview_pane(self) -> None:
+        vis = self._selected()
+        if vis and "preview" in vis.route:
+            self._close_preview_pane()
+            self._spawn_preview_pane(vis)
+
+    def _wezterm_cli(self) -> str | None:
+        wez = shutil.which("wezterm")
+        if wez:
+            return wez
+        exe = os.environ.get("WEZTERM_EXECUTABLE")
+        if exe:
+            cand = Path(exe).resolve().parent / "wezterm.exe"
+            if cand.exists():
+                return str(cand)
+        return None
+
+    def _spawn_preview_pane(self, vis: Visual) -> str:
+        if self._preview_pane_id:
+            return ""
+        pane = os.environ.get("WEZTERM_PANE")
+        cli = self._wezterm_cli()
+        if not cli or not pane:
+            self._preview_pane_id = "standalone"
+            return "(no wezterm - open dev.ps1 triptych)"
+        preview_py = str(Path(__file__).resolve().parent.parent / "preview.py")
+        vis_path = str(vis.path.resolve())
+        cmd = [cli, "cli", "split-pane", "--top", "--pane-id", pane, "--cwd", vis_path,
+               sys.executable, preview_py, "--width", "46",
+               str(vis.path / "data" / "frame.png")]
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        if out.returncode != 0:
+            return "(pane spawn failed: " + (out.stderr.strip().splitlines()[-1:] or ["unknown"])[0][:80] + ")"
+        self._preview_pane_id = out.stdout.strip().splitlines()[-1].strip()
+        return f"(pane {self._preview_pane_id})"
+
+    def _close_preview_pane(self) -> str:
+        pid, self._preview_pane_id = self._preview_pane_id, None
+        if not pid or pid == "standalone":
+            return ""
+        cli = self._wezterm_cli()
+        if not cli:
+            return "(no wezterm)"
+        out = subprocess.run([cli, "cli", "close-pane", "--pane-id", pid],
+                             capture_output=True, text=True, timeout=10)
+        return "(close failed)" if out.returncode != 0 else ""
 
     def _parameter(self) -> tuple[Visual | None, Parameter | None]:
         vis = self._selected()
@@ -774,9 +842,17 @@ class XVCpanel(App):
     def on_btn_live(self, event: Button.Pressed) -> None:
         self.action_toggle_live()
 
-    @on(Button.Pressed, "#btn-route")
-    def on_btn_route(self, event: Button.Pressed) -> None:
-        self.action_next_output()
+    @on(Button.Pressed, "#btn-rt-win")
+    def on_btn_rt_win(self, event: Button.Pressed) -> None:
+        self.action_toggle_route_window()
+
+    @on(Button.Pressed, "#btn-rt-res")
+    def on_btn_rt_res(self, event: Button.Pressed) -> None:
+        self.action_toggle_route_resolume()
+
+    @on(Button.Pressed, "#btn-rt-prev")
+    def on_btn_rt_prev(self, event: Button.Pressed) -> None:
+        self.action_toggle_route_preview()
 
     @on(Button.Pressed, "#btn-prev")
     def on_btn_prev(self, event: Button.Pressed) -> None:

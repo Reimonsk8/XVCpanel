@@ -80,7 +80,8 @@ Model/engine:
 ## 9. Dev triptych: everything in one WezTerm window
 
 `[done]`
-- `dev.ps1` opens one WezTerm window split into 3 panes: left nvim, bottom-right xvcpanel TUI, top-right in-terminal video preview (Kitty Graphics via `xvcpanel/preview.py`, a pure-Python emitter — no timg/wezterm-imgcat needed).
-- Frames flow over the filesystem only: the 3 GLSL sketches call `snapshotToFrame()` (~4 fps scaled 320x180 `data/frame.png`); preview.py redraws on mtime change.
+- `dev.ps1` opens one WezTerm window with 2 panes: left nvim, right xvcpanel TUI. The in-terminal preview pane is NOT created up front — the panel lazily `wezterm cli split-pane --top`s a `preview.py` watcher for the selected visual, and `close-pane`s it on toggle-off/selection change (`Visual.route` multi-toggle, buttons `[w] [R] [v]`, `o` = preview; `resolume` is a stub).
+- Preview rendering is pure-Python Kitty Graphics (`xvcpanel/preview.py` — no timg/wezterm-imgcat), mtime watch, banner ~6 s after the visual stops.
+- Frames flow over the filesystem only: the 3 GLSL sketches call `snapshotToFrame()` (~4 fps scaled 320x180 `data/frame.png`); `Visual.route` preview watches the selected visual's own `data/frame.png`.
 - Pane collapse/show/hide: `F9` (wezterm.lua `TogglePaneZoomState`) zooms the focused pane, `F9` again restores; scriptable via `wezterm cli zoom-pane --pane-id <N> --toggle`.
 - WezTerm provisioned into `.tools/wezterm` by install.ps1.

@@ -1,10 +1,14 @@
-# dev.ps1 - open the XVCpanel triptych in one WezTerm window:
+# dev.ps1 - open the XVCpanel dev window in one WezTerm window:
 #
 #      ┌──────────────┬──────────────┐
-#      │  nvim        │  preview     │   top-right: live in-terminal preview
-#      │  (editor)    ├──────────────┤
-#      │              │  xvcpanel    │   bottom-right: control panel
+#      │  nvim        │  xvcpanel    │   right: control panel
+#      │  (editor)    │              │
 #      └──────────────┴──────────────┘
+#
+# The live in-terminal preview pane is NOT opened here - toggle it from the
+# panel with the "[v]" route button (or `o`). The panel spawns/kills the
+# preview pane via `wezterm cli split-pane/close-pane` on the fly, watching
+# the selected visual's own data/frame.png.
 #
 # Panes collapse/show/hide: focus a pane and press F9 (toggle back with F9 again),
 # or per-pane: wezterm cli zoom-pane --pane-id <N> --toggle.
@@ -22,9 +26,7 @@ $Gui = Join-Path $WezDir "wezterm-gui.exe"
 $Config = Join-Path $Root "wezterm.lua"
 
 $Sketch = Join-Path $Root "library\glsl\kaleidoscope_processing"
-$Frame  = Join-Path $Sketch "data\frame.png"
 $Python = Join-Path $Root ".venv\Scripts\python.exe"
-$Preview = Join-Path $Root "xvcpanel\preview.py"
 $Panel   = Join-Path $Root "xvcpanel\__main__.py"
 
 # Run inside a fresh WezTerm window when launched from Explorer/cmd.
@@ -33,17 +35,17 @@ if (-not $env:WEZTERM_PANE) {
     exit
 }
 
-New-Item -ItemType Directory -Force (Join-Path $Sketch "data") | Out-Null
+# Give every pane the wezterm CLI so the panel can split/close the preview pane.
+$env:PATH = "$WezDir;$env:PATH"
 
 # Splits happen against the pane that runs this script (pane 0).
 $EditorPane = $env:WEZTERM_PANE
 $PanelOut = & $Wez cli split-pane --right --pane-id $EditorPane --cwd $Root -- $Python $Panel -d $Root
 $PanelPane = ($PanelOut | Select-Object -Last 1).Trim()
-$PreviewOut = & $Wez cli split-pane --top --pane-id $PanelPane --cwd $Sketch -- $Python $Preview --width 46 $Frame
-$PreviewPane = ($PreviewOut | Select-Object -Last 1).Trim()
 
-Write-Host "  layout: editor ($EditorPane)  |  preview ($PreviewPane) / panel ($PanelPane)"
+Write-Host "  layout: editor ($EditorPane)  |  panel ($PanelPane)"
 Write-Host "  F9 in a pane to collapse/show/hide the other panes. Quit nvim when done."
+Write-Host "  route [v] (or `o`) in the panel opens the in-terminal preview pane for the selected visual."
 
 # Editor for this pane: $EDITOR, then bundled nvim, then nvim on PATH.
 $Editor = $env:EDITOR

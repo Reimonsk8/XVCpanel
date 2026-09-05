@@ -76,6 +76,7 @@ class Visual:
     osc_host: str = "127.0.0.1"
     osc_port: int = 0
     output_index: int = 0
+    route: list[str] = field(default_factory=lambda: ["window"])
     status: VisualStatus = VisualStatus.IDLE
     process: object = field(default=None, repr=False)
 
@@ -120,6 +121,17 @@ class Visual:
     def select_next_output(self) -> Output:
         self.output_index = (self.output_index + 1) % len(self.outputs)
         return self.output
+
+    def has_route(self, sink: str) -> bool:
+        return sink in self.route
+
+    def toggle_route(self, sink: str) -> bool:
+        """Flip a route sink on/off; returns its new state."""
+        if sink in self.route:
+            self.route = [s for s in self.route if s != sink]
+            return False
+        self.route = [*self.route, sink]
+        return True
 
     def filter_key(self) -> str:
         return f"{self.name} {self.framework.value} {' '.join(self.tags)}".lower()
