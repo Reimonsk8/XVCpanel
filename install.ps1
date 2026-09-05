@@ -166,6 +166,9 @@ if ($InstallGlsl) {
 Install-GitHubZip "neovim/neovim" "nvim-win64\.zip$" (Join-Path $Tools "neovim")
 Add-AllToolBins
 
+Install-GitHubZip "wez/wezterm" "windows.*\.zip$" (Join-Path $Tools "wezterm")
+Add-AllToolBins
+
 Write-Stage "[5/5] Presets and global commands"
 $UsePresets = Read-PresetChoice
 if ($UsePresets) {

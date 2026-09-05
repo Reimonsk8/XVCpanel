@@ -54,6 +54,22 @@ void draw() {
     fill(255);
     textSize(14);
     text("FPS: " + nf(frameRate, 1, 1) + "  [F] fullscreen", 10, height - 10);
+
+    snapshotToFrame();
+}
+
+long lastShot = 0;
+
+// ~4 fps scaled PNG next to the sketch; the dev.ps1 preview pane renders it (data/frame.png)
+void snapshotToFrame() {
+    if (millis() - lastShot < 250) {
+        return;
+    }
+    lastShot = millis();
+    PImage full = get();
+    PImage small = createImage(320, 180, RGB);
+    small.copy(full, 0, 0, width, height, 0, 0, 320, 180);
+    small.save("data/frame.png");
 }
 
 void keyPressed() {

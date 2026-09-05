@@ -76,3 +76,11 @@ Model/engine:
 - `g` / `[live]` toggles a 0.6 s mtime watcher: GLSL saves hot-reload in the sketch window (sketches re-`loadShader` on mtime change, keeping the old shader on compile error); all other frameworks stop + rebuild + relaunch if the visual is running.
 - GLSL hot reload planted in `kaleidoscope_processing.pde`, `neon_tunnel_processing.pde`, `warp_processing.pde`. Shader edits are instant; `.pde`/`.rs` edits are restart-on-save (1–3 s).
 - Action bar decluttered: dropped keyboard-duplicate buttons (LFO / r- / r+ / wv) and the two ctx labels (folded into the status bar) so all pills fit at 120 columns.
+
+## 9. Dev triptych: everything in one WezTerm window
+
+`[done]`
+- `dev.ps1` opens one WezTerm window split into 3 panes: left nvim, bottom-right xvcpanel TUI, top-right in-terminal video preview (Kitty Graphics via `xvcpanel/preview.py`, a pure-Python emitter — no timg/wezterm-imgcat needed).
+- Frames flow over the filesystem only: the 3 GLSL sketches call `snapshotToFrame()` (~4 fps scaled 320x180 `data/frame.png`); preview.py redraws on mtime change.
+- Pane collapse/show/hide: `F9` (wezterm.lua `TogglePaneZoomState`) zooms the focused pane, `F9` again restores; scriptable via `wezterm cli zoom-pane --pane-id <N> --toggle`.
+- WezTerm provisioned into `.tools/wezterm` by install.ps1.

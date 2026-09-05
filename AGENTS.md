@@ -29,6 +29,13 @@ Windows-first TUI that scans `library/**/xvc.json` for visual projects, builds/l
 - `g`/`[live]` toggles a 0.6 s mtime watcher (`_poll_live`). GLSL saves push hot-reload directly into the running sketch (the 3 `*_processing.pde` re-`loadShader()` on mtime change and keep the previous shader on compile error). Every other framework does stop → rebuild → relaunch (`reload_visual`) while the visual is running.
 - Don't "simplify" the relaunch path into calling `run_visual` alone — it would spawn a duplicate process; `reload_visual` calls `stop_visual` first.
 
+## Dev triptych (WezTerm)
+
+- `dev.ps1` opens one WezTerm window with 3 panes: left = nvim editor, top-right = in-terminal `preview.py` (renders `data/frame.png` via `wezterm imgcat`/Kitty protocol), bottom-right = the xvcpanel TUI. Runs must be started from the panel for frames to flow.
+- Rendering bridge is filesystem-only: the 3 GLSL sketches (`*_processing.pde`) call `snapshotToFrame()` in `draw()` (gated to ~4 fps) and save a 320x180 `data/frame.png`; `xvcpanel/preview.py` watches that file and re-renders on mtime change. Copy `snapshotToFrame()` into other Processing sketches to extend.
+- Collapse/show/hide panes: `F9` (set in `wezterm.lua` via `TogglePaneZoomState`) zooms the focused pane, `F9` again restores the 3-pane layout. Scripted: `wezterm cli zoom-pane --pane-id <N> --toggle`.
+- WezTerm runs from `.tools/wezterm` (provisioned by install.ps1). There is no stdout "timg" step on Windows — `wezterm imgcat` replaces it.
+
 ## OSC
 
 - Sender: `xvcpanel/controls/osc.py::send_float` — big-endian f32 with `,f` tag.

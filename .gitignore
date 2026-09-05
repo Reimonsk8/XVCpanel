@@ -8,6 +8,8 @@ venv/
 dist/
 build/
 *.log
+.library-frame/
+library/**/data/frame.png
 .DS_Store
 Thumbs.db
 target/
