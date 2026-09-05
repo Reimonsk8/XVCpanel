@@ -522,15 +522,22 @@ class XVCpanel(App):
 
     def _toggle_route_sink(self, sink: str) -> None:
         vis = self._selected()
-        if not vis:
+        if sink == "preview":
+            if vis is not None:
+                on = vis.toggle_route("preview")
+                self._refresh()
+            else:
+                on = self._preview_pane_id is None
+            note = " " + (self._spawn_preview_pane(vis) if on else self._close_preview_pane()).strip()
+            label = f" {vis.name}: route preview {'ON' if on else 'OFF'}{note}" if vis else \
+                f" preview {'ON' if on else 'OFF'}{note}"
+            self.query_one("#status-bar").update(label)
+            return
+        if vis is None:
             return
         on = vis.toggle_route(sink)
         self._refresh()
-        note = ""
-        if sink == "preview":
-            note = " " + (self._spawn_preview_pane(vis) if on else self._close_preview_pane()).strip()
-        elif sink == "resolume" and on:
-            note = " (stub - transport TBD)"
+        note = " (stub - transport TBD)" if sink == "resolume" and on else ""
         self.query_one("#status-bar").update(f" {vis.name}: route {sink} {'ON' if on else 'OFF'}{note}")
 
     def _retarget_preview_pane(self) -> None:
@@ -550,7 +557,7 @@ class XVCpanel(App):
                 return str(cand)
         return None
 
-    def _spawn_preview_pane(self, vis: Visual) -> str:
+    def _spawn_preview_pane(self, vis: Visual | None) -> str:
         if self._preview_pane_id:
             return ""
         pane = os.environ.get("WEZTERM_PANE")
@@ -559,10 +566,10 @@ class XVCpanel(App):
             self._preview_pane_id = "standalone"
             return "(no wezterm - open dev.ps1 triptych)"
         preview_py = str(Path(__file__).resolve().parent.parent / "preview.py")
-        vis_path = str(vis.path.resolve())
-        cmd = [cli, "cli", "split-pane", "--top", "--pane-id", pane, "--cwd", vis_path,
-               sys.executable, preview_py, "--width", "46",
-               str(vis.path / "data" / "frame.png")]
+        base = str(vis.path.resolve()) if vis else str(self.library_path.resolve())
+        args = [str(vis.path / "data" / "frame.png")] if vis else []
+        cmd = [cli, "cli", "split-pane", "--top", "--pane-id", pane, "--cwd", base, "--",
+               sys.executable, preview_py, "--width", "46", *args]
         out = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
         pane_id = out.stdout.strip().splitlines()[-1].strip() if out.stdout.strip() else ""
         if out.returncode != 0 or not pane_id:
@@ -695,11 +702,44 @@ class XVCpanel(App):
         candidate = winapps if os.path.isfile(winapps) else shutil.which("wt")
         return candidate
 
+    def _editor_pane_id(self) -> str | None:
+        pane = os.environ.get("WEZTERM_PANE")
+        cli = self._wezterm_cli()
+        if not cli or not pane:
+            return None
+        out = subprocess.run([cli, "cli", "get-pane-direction", "--pane-id", pane, "Left"],
+                             capture_output=True, text=True, timeout=10)
+        pid = out.stdout.strip().splitlines()[-1].strip() if out.stdout.strip() else ""
+        return pid or None
+
+    def _edit_in_multiplex(self, src: Path) -> str | None:
+        """Type `:e <file>` into the left nvim pane and focus it. Returns status note or None."""
+        pane = os.environ.get("WEZTERM_PANE")
+        cli = self._wezterm_cli()
+        if not cli or not pane:
+            return None
+        left = self._editor_pane_id()
+        if not left:
+            return None
+        path = str(src).replace("\\", "/")
+        out = subprocess.run([cli, "cli", "send-text", "--no-paste", "--pane-id", left,
+                              f"\x1b:e {path}\r"],
+                             capture_output=True, text=True, timeout=10)
+        if out.returncode != 0:
+            return None
+        subprocess.run([cli, "cli", "activate-pane", "--pane-id", left],
+                       capture_output=True, text=True, timeout=10)
+        return f" edit: {src.name} loaded in the left editor pane" + (" · save to reload" if self.live_mode else "")
+
     def action_open_source(self) -> None:
         vis = self._selected()
         src = vis.source_path if vis else None
         if src is None:
             self.query_one("#status-bar").update(" no editable source found for this visual")
+            return
+        multiplex = self._edit_in_multiplex(src)
+        if multiplex is not None:
+            self.query_one("#status-bar").update(multiplex)
             return
         editor = self._resolve_editor()
         argv = [part for part in editor.split() if part]
