@@ -84,4 +84,5 @@ Model/engine:
 - Preview rendering is pure-Python Kitty Graphics (`xvcpanel/preview.py` — no timg/wezterm-imgcat), mtime watch, banner ~6 s after the visual stops.
 - Frames flow over the filesystem only: all 7 Processing visuals call `snapshotToFrame()` (~4 fps scaled 320x180 `data/frame.png`, `data/` auto-created); `Visual.route` preview watches the selected visual's own `data/frame.png`.
 - Pane collapse/show/hide: `F9` (wezterm.lua `TogglePaneZoomState`) zooms the focused pane, `F9` again restores; scriptable via `wezterm cli zoom-pane --pane-id <N> --toggle`.
+- `[float]`/`[dock]` (action bar) toggles the whole layout between multiplex-in-terminal (editor + preview panes docked) and floating (editor and preview each in their own window, left pane closed); every `wezterm cli` call is logged to `%TEMP%\xvcpanel-mux.log`.
 - WezTerm provisioned into `.tools/wezterm` by install.ps1.

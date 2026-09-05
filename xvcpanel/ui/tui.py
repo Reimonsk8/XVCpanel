@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -330,7 +331,9 @@ class XVCpanel(App):
         self._live_source: Path | None = None
         self._live_mtime: float = 0.0
         self._preview_pane_id: str | None = None
+        self._preview_float_pane: str | None = None
         self._popout_pane_id: str | None = None
+        self._floating: bool = False
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="topbar"):
@@ -352,7 +355,7 @@ class XVCpanel(App):
                 yield Button(r"\[Build\]", id="btn-build")
                 yield Button(r"\[edit\]", id="btn-edit")
                 yield Button(r"\[live\]", id="btn-live")
-                yield Button("[pop]", id="btn-edpop", classes="btn-rt")
+                yield Button("[float]", id="btn-edpop", classes="btn-rt")
                 yield Button("[w]", id="btn-rt-win", classes="btn-rt")
                 yield Button("[R]", id="btn-rt-res", classes="btn-rt")
                 yield Button("[v]", id="btn-rt-prev", classes="btn-rt")
@@ -415,7 +418,7 @@ class XVCpanel(App):
             table.add_row(state, v.name, FW_SHORT.get(v.framework, "?"), v.output.name, params, tags)
         self.query_one("#preview", PreviewPanel).update_visual(vis, self.parameter_index)
         self._update_status_bar()
-        self.query_one("#btn-edpop", Button).label = "[dock]" if self._popout_pane_id else "[pop]"
+        self.query_one("#btn-edpop", Button).label = "[dock]" if self._floating else "[float]"
         for ident, sink in (("#btn-rt-win", "window"), ("#btn-rt-res", "resolume"), ("#btn-rt-prev", "preview"),
                             ("#rt2-win", "window"), ("#rt2-res", "resolume"), ("#rt2-prev", "preview")):
             self.query_one(ident, Button).set_class(vis is not None and sink in vis.route, "active")
@@ -560,37 +563,69 @@ class XVCpanel(App):
                 return str(cand)
         return None
 
-    def _spawn_preview_pane(self, vis: Visual | None) -> str:
-        if self._preview_pane_id:
-            return ""
+    def _mux(self, *argv: str, timeout: int = 15) -> subprocess.CompletedProcess:
+        """Run a `wezterm cli` subcommand, logging every call for diagnosis."""
+        cli = self._wezterm_cli()
+        if not cli:
+            raise FileNotFoundError("wezterm cli not found (run the panel inside dev.ps1)")
+        proc = subprocess.run([cli, "cli", *argv], capture_output=True, text=True, timeout=timeout)
+        try:
+            with open(os.path.join(tempfile.gettempdir(), "xvcpanel-mux.log"), "a") as fh:
+                fh.write(f"$ wezterm cli {' '.join(argv)}\n"
+                         f"  rc={proc.returncode} out={proc.stdout.strip()!r} err={proc.stderr.strip()!r}\n")
+        except OSError:
+            pass
+        return proc
+
+    def _current_pane(self) -> str | None:
+        """Our own wezterm pane id (or the first live pane when running outside one)."""
         pane = os.environ.get("WEZTERM_PANE")
+        if pane:
+            return pane
+        if not self._wezterm_cli():
+            return None
+        out = self._mux("list", timeout=10)
+        for row in out.stdout.strip().splitlines()[1:]:
+            parts = row.split()
+            if parts and parts[0].isdigit():
+                return parts[2]
+        return None
+
+    def _spawn_preview_pane(self, vis: Visual | None) -> str:
+        if self._preview_pane_id or self._preview_float_pane:
+            return ""
+        pane = self._current_pane()
         cli = self._wezterm_cli()
         if not cli or not pane:
             self._preview_pane_id = "standalone"
-            return "(no wezterm - open dev.ps1 triptych)"
+            return "(no wezterm - run the panel inside dev.ps1 for preview)"
         preview_py = str(Path(__file__).resolve().parent.parent / "preview.py")
         base = str(vis.path.resolve()) if vis else str(self.library_path.resolve())
         args = [str(vis.path / "data" / "frame.png")] if vis else []
-        cmd = [cli, "cli", "split-pane", "--top", "--pane-id", pane, "--cwd", base, "--",
-               sys.executable, preview_py, "--width", "46", *args]
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
-        pane_id = out.stdout.strip().splitlines()[-1].strip() if out.stdout.strip() else ""
-        if out.returncode != 0 or not pane_id:
+        prog = [sys.executable, preview_py, "--width", "46", *args]
+        if self._floating:
+            out = self._mux("spawn", "--new-window", "--cwd", base, "--", *prog, timeout=15)
+            attr = "_preview_float_pane"
+        else:
+            out = self._mux("split-pane", "--top", "--pane-id", pane, "--cwd", base, "--", *prog, timeout=15)
+            attr = "_preview_pane_id"
+        pid = out.stdout.strip().splitlines()[-1].strip() if out.stdout.strip() else ""
+        if out.returncode != 0 or not pid:
             err = (out.stderr.strip() or out.stdout.strip()).splitlines()
-            return "(spawn failed: " + (err[-1] if err else "no pane id")[:80] + ")"
-        self._preview_pane_id = pane_id
-        return f"(pane {pane_id})"
+            return "(preview failed: " + (err[-1] if err else "no pane id")[:80] + ")"
+        setattr(self, attr, pid)
+        return f"(pane {pid})"
 
     def _close_preview_pane(self) -> str:
-        pid, self._preview_pane_id = self._preview_pane_id, None
-        if not pid or pid == "standalone":
-            return ""
-        cli = self._wezterm_cli()
-        if not cli:
-            return "(no wezterm)"
-        out = subprocess.run([cli, "cli", "kill-pane", "--pane-id", pid],
-                             capture_output=True, text=True, timeout=10)
-        return "(kill failed)" if out.returncode != 0 else ""
+        notes: list[str] = []
+        for attr in ("_preview_pane_id", "_preview_float_pane"):
+            pid = getattr(self, attr)
+            setattr(self, attr, None)
+            if pid and pid != "standalone":
+                out = self._mux("kill-pane", "--pane-id", pid, timeout=10)
+                if out.returncode != 0:
+                    notes.append("(kill failed)")
+        return " ".join(notes)
 
     def _editor_cmd(self, src: Path) -> list[str]:
         editor = self._resolve_editor()
@@ -601,50 +636,64 @@ class XVCpanel(App):
         cand = self.library_path / "glsl" / "kaleidoscope_processing" / "kaleidoscope_processing.pde"
         return cand if cand.is_file() else None
 
-    def action_toggle_editor(self) -> None:
-        """Pop the left editor pane into its own window, or dock it back."""
-        pane = os.environ.get("WEZTERM_PANE")
+    def action_toggle_mode(self) -> None:
+        """Toggle multiplex (editor+preview in-terminal) <-> floating (own windows)."""
+        pane = self._current_pane()
         cli = self._wezterm_cli()
         if not cli or not pane:
-            self.query_one("#status-bar").update(" editor pop-out needs the wezterm triptych (dev.ps1)")
+            self.query_one("#status-bar").update(" floating mode needs the wezterm triptych (run dev.ps1)")
             return
         vis = self._selected()
         src = (vis.source_path if vis else None) or self._default_sketch_source()
-        if src is None:
+        if src is None and not self._floating:
             self.query_one("#status-bar").update(" no source file for the editor")
             return
-        if self._popout_pane_id:
-            note = self._dock_editor(cli, pane, src)
+        if self._floating:
+            note = self._dock_editor(cli, pane, src, vis)
         else:
-            note = self._popout_editor(cli, pane, src)
+            note = self._float_editor(cli, src, vis)
         self._refresh()
         self.query_one("#status-bar").update(note)
 
-    def _popout_editor(self, cli: str, pane: str, src: Path) -> str:
-        cmd = [cli, "cli", "spawn", "--new-window", "--cwd", str(src.parent), "--", *self._editor_cmd(src)]
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+    def _float_editor(self, cli: str, src: Path, vis: Visual | None) -> str:
+        out = self._mux("spawn", "--new-window", "--cwd", str(src.parent), "--",
+                        *self._editor_cmd(src), timeout=15)
         pid = out.stdout.strip().splitlines()[-1].strip() if out.stdout.strip() else ""
         if out.returncode != 0 or not pid:
             err = (out.stderr.strip() or out.stdout.strip()).splitlines()
-            return " pop-out failed: " + (err[-1] if err else "no pane id")[:80]
+            return " floating failed: " + (err[-1] if err else "no pane id")[:80]
         self._popout_pane_id = pid
+        self._floating = True
+        notes = [f"floating: editor -> window pane {pid}"]
         left = self._editor_pane_id()
         if left:
-            subprocess.run([cli, "cli", "kill-pane", "--pane-id", left], capture_output=True, text=True, timeout=10)
-        return f" editor popped out (window pane {pid}) - [dock] brings it back"
+            self._mux("kill-pane", "--pane-id", left, timeout=10)
+        if self._preview_pane_id and self._preview_pane_id != "standalone":
+            self._close_preview_pane()
+            moved = self._spawn_preview_pane(vis)
+            if moved:
+                notes.append("preview -> window" + moved)
+        return "; ".join(notes)
 
-    def _dock_editor(self, cli: str, pane: str, src: Path) -> str:
-        cmd = [cli, "cli", "split-pane", "--left", "--pane-id", pane, "--cwd", str(src.parent),
-               "--", *self._editor_cmd(src)]
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+    def _dock_editor(self, cli: str, pane: str, src: Path, vis: Visual | None) -> str:
+        out = self._mux("split-pane", "--left", "--pane-id", pane, "--cwd", str(src.parent),
+                        "--", *self._editor_cmd(src), timeout=15)
         pid = out.stdout.strip().splitlines()[-1].strip() if out.stdout.strip() else ""
         if out.returncode != 0 or not pid:
             err = (out.stderr.strip() or out.stdout.strip()).splitlines()
             return " dock failed: " + (err[-1] if err else "no pane id")[:80]
-        pop, self._popout_pane_id = self._popout_pane_id, None
+        notes = [f"docked: editor -> pane {pid}"]
+        pop = self._popout_pane_id
         if pop:
-            subprocess.run([cli, "cli", "kill-pane", "--pane-id", pop], capture_output=True, text=True, timeout=10)
-        return f" editor docked back (pane {pid})"
+            self._mux("kill-pane", "--pane-id", pop, timeout=10)
+        self._popout_pane_id = None
+        if self._preview_float_pane:
+            self._close_preview_pane()
+            spawned = self._spawn_preview_pane(vis)
+            if spawned:
+                notes.append("preview docked" + spawned)
+        self._floating = False
+        return "; ".join(notes)
 
     def _parameter(self) -> tuple[Visual | None, Parameter | None]:
         vis = self._selected()
@@ -760,18 +809,17 @@ class XVCpanel(App):
         return candidate
 
     def _editor_pane_id(self) -> str | None:
-        pane = os.environ.get("WEZTERM_PANE")
+        pane = self._current_pane()
         cli = self._wezterm_cli()
         if not cli or not pane:
             return None
-        out = subprocess.run([cli, "cli", "get-pane-direction", "--pane-id", pane, "Left"],
-                             capture_output=True, text=True, timeout=10)
+        out = self._mux("get-pane-direction", "--pane-id", pane, "Left", timeout=10)
         pid = out.stdout.strip().splitlines()[-1].strip() if out.stdout.strip() else ""
         return pid or None
 
     def _edit_in_multiplex(self, src: Path) -> str | None:
         """Type `:e <file>` into the left nvim pane and focus it. Returns status note or None."""
-        pane = os.environ.get("WEZTERM_PANE")
+        pane = self._current_pane()
         cli = self._wezterm_cli()
         if not cli or not pane:
             return None
@@ -779,13 +827,10 @@ class XVCpanel(App):
         if not left:
             return None
         path = str(src).replace("\\", "/")
-        out = subprocess.run([cli, "cli", "send-text", "--no-paste", "--pane-id", left,
-                              f"\x1b:e {path}\r"],
-                             capture_output=True, text=True, timeout=10)
+        out = self._mux("send-text", "--no-paste", "--pane-id", left, f"\x1b:e {path}\r", timeout=10)
         if out.returncode != 0:
             return None
-        subprocess.run([cli, "cli", "activate-pane", "--pane-id", left],
-                       capture_output=True, text=True, timeout=10)
+        self._mux("activate-pane", "--pane-id", left, timeout=10)
         return f" edit: {src.name} loaded in the left editor pane" + (" · save to reload" if self.live_mode else "")
 
     def action_open_source(self) -> None:
@@ -950,7 +995,7 @@ class XVCpanel(App):
 
     @on(Button.Pressed, "#btn-edpop")
     def on_btn_edpop(self, event: Button.Pressed) -> None:
-        self.action_toggle_editor()
+        self.action_toggle_mode()
 
     @on(Button.Pressed, "#btn-rt-win")
     def on_btn_rt_win(self, event: Button.Pressed) -> None:
