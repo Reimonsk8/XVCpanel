@@ -70,6 +70,8 @@ void draw() {
     text("FPS: " + nf(frameRate, 1, 1) +
          "  Balls: " + balls.size() +
          "  Press F to fullscreen", 10, height - 10);
+
+    snapshotToFrame();
 }
 
 void keyPressed() {
@@ -134,4 +136,19 @@ class OscIn extends Thread {
         ByteBuffer bb = ByteBuffer.wrap(b, i, 4).order(ByteOrder.BIG_ENDIAN);
         return new String[]{addr, Float.toString(bb.getFloat())};
     }
+}
+
+long lastShot = 0;
+
+// ~4 fps scaled PNG next to the sketch; the panel's [v] preview pane renders it
+void snapshotToFrame() {
+    if (millis() - lastShot < 250) {
+        return;
+    }
+    lastShot = millis();
+    new File(sketchPath("data")).mkdirs();
+    PImage full = get();
+    PImage small = createImage(320, 180, RGB);
+    small.copy(full, 0, 0, width, height, 0, 0, 320, 180);
+    small.save("data/frame.png");
 }
