@@ -40,7 +40,7 @@ fn update(_app: &App, model: &mut Model, _update: Update) {
 }
 
 fn band_y(band: f32, x: f32, t: f32, flow: f32) -> f32 {
-    let nx = x / 2000.0;
+    let nx = x / 50.0;
     (nx * 2.5 + t * (0.4 + band * 0.2) * flow + band * 7.0).sin() * 90.0
         + (nx * 6.0 - t * 0.6 * flow + band * 3.0).sin() * 30.0
 }
