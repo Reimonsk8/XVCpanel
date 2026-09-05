@@ -330,6 +330,7 @@ class XVCpanel(App):
         self._live_source: Path | None = None
         self._live_mtime: float = 0.0
         self._preview_pane_id: str | None = None
+        self._popout_pane_id: str | None = None
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="topbar"):
@@ -351,6 +352,7 @@ class XVCpanel(App):
                 yield Button(r"\[Build\]", id="btn-build")
                 yield Button(r"\[edit\]", id="btn-edit")
                 yield Button(r"\[live\]", id="btn-live")
+                yield Button("[pop]", id="btn-edpop", classes="btn-rt")
                 yield Button("[w]", id="btn-rt-win", classes="btn-rt")
                 yield Button("[R]", id="btn-rt-res", classes="btn-rt")
                 yield Button("[v]", id="btn-rt-prev", classes="btn-rt")
@@ -413,6 +415,7 @@ class XVCpanel(App):
             table.add_row(state, v.name, FW_SHORT.get(v.framework, "?"), v.output.name, params, tags)
         self.query_one("#preview", PreviewPanel).update_visual(vis, self.parameter_index)
         self._update_status_bar()
+        self.query_one("#btn-edpop", Button).label = "[dock]" if self._popout_pane_id else "[pop]"
         for ident, sink in (("#btn-rt-win", "window"), ("#btn-rt-res", "resolume"), ("#btn-rt-prev", "preview"),
                             ("#rt2-win", "window"), ("#rt2-res", "resolume"), ("#rt2-prev", "preview")):
             self.query_one(ident, Button).set_class(vis is not None and sink in vis.route, "active")
@@ -588,6 +591,60 @@ class XVCpanel(App):
         out = subprocess.run([cli, "cli", "kill-pane", "--pane-id", pid],
                              capture_output=True, text=True, timeout=10)
         return "(kill failed)" if out.returncode != 0 else ""
+
+    def _editor_cmd(self, src: Path) -> list[str]:
+        editor = self._resolve_editor()
+        argv = [part for part in editor.split() if part]
+        return [*argv, str(src)]
+
+    def _default_sketch_source(self) -> Path | None:
+        cand = self.library_path / "glsl" / "kaleidoscope_processing" / "kaleidoscope_processing.pde"
+        return cand if cand.is_file() else None
+
+    def action_toggle_editor(self) -> None:
+        """Pop the left editor pane into its own window, or dock it back."""
+        pane = os.environ.get("WEZTERM_PANE")
+        cli = self._wezterm_cli()
+        if not cli or not pane:
+            self.query_one("#status-bar").update(" editor pop-out needs the wezterm triptych (dev.ps1)")
+            return
+        vis = self._selected()
+        src = (vis.source_path if vis else None) or self._default_sketch_source()
+        if src is None:
+            self.query_one("#status-bar").update(" no source file for the editor")
+            return
+        if self._popout_pane_id:
+            note = self._dock_editor(cli, pane, src)
+        else:
+            note = self._popout_editor(cli, pane, src)
+        self._refresh()
+        self.query_one("#status-bar").update(note)
+
+    def _popout_editor(self, cli: str, pane: str, src: Path) -> str:
+        cmd = [cli, "cli", "spawn", "--new-window", "--cwd", str(src.parent), "--", *self._editor_cmd(src)]
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        pid = out.stdout.strip().splitlines()[-1].strip() if out.stdout.strip() else ""
+        if out.returncode != 0 or not pid:
+            err = (out.stderr.strip() or out.stdout.strip()).splitlines()
+            return " pop-out failed: " + (err[-1] if err else "no pane id")[:80]
+        self._popout_pane_id = pid
+        left = self._editor_pane_id()
+        if left:
+            subprocess.run([cli, "cli", "kill-pane", "--pane-id", left], capture_output=True, text=True, timeout=10)
+        return f" editor popped out (window pane {pid}) - [dock] brings it back"
+
+    def _dock_editor(self, cli: str, pane: str, src: Path) -> str:
+        cmd = [cli, "cli", "split-pane", "--left", "--pane-id", pane, "--cwd", str(src.parent),
+               "--", *self._editor_cmd(src)]
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        pid = out.stdout.strip().splitlines()[-1].strip() if out.stdout.strip() else ""
+        if out.returncode != 0 or not pid:
+            err = (out.stderr.strip() or out.stdout.strip()).splitlines()
+            return " dock failed: " + (err[-1] if err else "no pane id")[:80]
+        pop, self._popout_pane_id = self._popout_pane_id, None
+        if pop:
+            subprocess.run([cli, "cli", "kill-pane", "--pane-id", pop], capture_output=True, text=True, timeout=10)
+        return f" editor docked back (pane {pid})"
 
     def _parameter(self) -> tuple[Visual | None, Parameter | None]:
         vis = self._selected()
@@ -890,6 +947,10 @@ class XVCpanel(App):
     @on(Button.Pressed, "#btn-live")
     def on_btn_live(self, event: Button.Pressed) -> None:
         self.action_toggle_live()
+
+    @on(Button.Pressed, "#btn-edpop")
+    def on_btn_edpop(self, event: Button.Pressed) -> None:
+        self.action_toggle_editor()
 
     @on(Button.Pressed, "#btn-rt-win")
     def on_btn_rt_win(self, event: Button.Pressed) -> None:
