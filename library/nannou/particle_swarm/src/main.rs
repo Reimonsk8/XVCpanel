@@ -3,6 +3,7 @@ use nannou::prelude::*;
 use std::collections::HashMap;
 use std::net::UdpSocket;
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 
 struct Particle {
@@ -28,7 +29,7 @@ fn main() {
 
 fn model(app: &App) -> Model {
     app.new_window()
-        .size(192, 108)
+        .size(1920, 1080)
         .view(view)
         .build()
         .unwrap();
@@ -43,13 +44,17 @@ fn model(app: &App) -> Model {
         let radius = 10.0 + rand(&mut seed) * 700.0;
         let speed = 0.1 + rand(&mut seed) * 0.8;
         let orbit = (rand(&mut seed) - 0.5) * 2.0;
-        let size = 1.5 + rand(&mut seed) * 0;
+        let size = 1.5 + rand(&mut seed) * 0.0;
         particles.push(Particle { angle, radius, speed, orbit, size });
     }
-    Model i{
+    Model {
         time: 0.0,
         particles,
-        osc: osc_listen(90    }
+        osc: osc_listen(9009),
+        speed: 0.6,
+        spread: 1.0,
+        hue_shift: 0.02,
+    }
 }
 
 fn update(_app: &App, model: &mut Model, _update: Update) {
@@ -97,6 +102,29 @@ fn view(app: &App, model: &Model, frame: Frame) {
     }
 
     draw.to_frame(app, &frame).unwrap();
+    frameout(app);
+}
+
+// --- XVCpanel in-terminal preview bridge: ~4 fps PNG; hidden window when XVC_HEADLESS ---
+fn frameout(app: &App) {
+    static LAST: AtomicU64 = AtomicU64::new(0);
+    if std::env::var("XVC_HEADLESS").is_ok() {
+        app.main_window().set_visible(false);
+    }
+    let ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+    let last = LAST.load(Ordering::Relaxed);
+    if last != 0 && ms.saturating_sub(last) < 250 {
+        return;
+    }
+    LAST.store(ms, Ordering::Relaxed);
+    if let Ok(dir) = std::env::current_dir() {
+        let d = dir.join("data");
+        std::fs::create_dir_all(&d).ok();
+        app.main_window().capture_frame(d.join("frame.png"));
+    }
 }
 
 fn osc_listen(port: u16) -> Arc<Mutex<HashMap<String, f32>>> {

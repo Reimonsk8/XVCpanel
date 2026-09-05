@@ -3,6 +3,7 @@ use nannou::prelude::*;
 use std::collections::HashMap;
 use std::net::UdpSocket;
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 
 struct Model {
@@ -101,6 +102,29 @@ fn view(app: &App, model: &Model, frame: Frame) {
     }
 
     draw.to_frame(app, &frame).unwrap();
+    frameout(app);
+}
+
+// --- XVCpanel in-terminal preview bridge: ~4 fps PNG; hidden window when XVC_HEADLESS ---
+fn frameout(app: &App) {
+    static LAST: AtomicU64 = AtomicU64::new(0);
+    if std::env::var("XVC_HEADLESS").is_ok() {
+        app.main_window().set_visible(false);
+    }
+    let ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+    let last = LAST.load(Ordering::Relaxed);
+    if last != 0 && ms.saturating_sub(last) < 250 {
+        return;
+    }
+    LAST.store(ms, Ordering::Relaxed);
+    if let Ok(dir) = std::env::current_dir() {
+        let d = dir.join("data");
+        std::fs::create_dir_all(&d).ok();
+        app.main_window().capture_frame(d.join("frame.png"));
+    }
 }
 
 fn osc_listen(port: u16) -> Arc<Mutex<HashMap<String, f32>>> {

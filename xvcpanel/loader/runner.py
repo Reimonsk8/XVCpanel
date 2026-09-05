@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from xvcpanel.models.visual import Framework, Visual, VisualStatus
+from xvcpanel.models.visual import Visual, VisualStatus
 
 log = logging.getLogger(__name__)
 
@@ -102,10 +102,10 @@ def run_visual(visual: Visual) -> tuple[bool, str]:
     if not run:
         return False, "no run command"
 
-    # preview-only route for a Processing/GLSL visual: no OS window, no console.
-    # The visual keeps rendering data/frame.png into the in-terminal preview pane.
-    headless = (visual.framework in (Framework.PROCESSING, Framework.GLSL)
-                and visual.has_route("preview") and not visual.has_route("window"))
+    # preview-only route: no OS window, no console. The visual keeps rendering
+    # data/frame.png into the in-terminal preview pane (nannou + Processing honor
+    # XVC_HEADLESS; anything else ignores it and just opens its window).
+    headless = visual.has_route("preview") and not visual.has_route("window")
 
     log.info("running %s: %s", visual.name, run)
     try:
