@@ -578,18 +578,8 @@ class XVCpanel(App):
         return proc
 
     def _current_pane(self) -> str | None:
-        """Our own wezterm pane id (or the first live pane when running outside one)."""
-        pane = os.environ.get("WEZTERM_PANE")
-        if pane:
-            return pane
-        if not self._wezterm_cli():
-            return None
-        out = self._mux("list", timeout=10)
-        for row in out.stdout.strip().splitlines()[1:]:
-            parts = row.split()
-            if parts and parts[0].isdigit():
-                return parts[2]
-        return None
+        """Our own wezterm pane id. None when the panel isn't running inside wezterm."""
+        return os.environ.get("WEZTERM_PANE")
 
     def _spawn_preview_pane(self, vis: Visual | None) -> str:
         if self._preview_pane_id or self._preview_float_pane:
