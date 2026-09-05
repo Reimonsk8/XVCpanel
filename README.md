@@ -195,6 +195,7 @@ Download the SDK from [openframeworks.cc/download](https://openframeworks.cc/dow
 |---|---|
 | `j` / `Down`, `k` / `Up` | Select visual |
 | `Enter`, `e` | Open selected visual's source in the editor (`:e` into the left pane inside dev.ps1, else a new window) |
+| `r` | Build if needed and run selected visual |
 | `b` | Build selected visual |
 | `s` | Stop selected visual and its process tree |
 | `o` | Toggle the preview route (`[v]`) - opens/closes the in-terminal preview pane |

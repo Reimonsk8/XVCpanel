@@ -292,6 +292,7 @@ class XVCpanel(App):
         Binding("j,down", "cursor_down", "down", show=True, priority=True),
         Binding("k,up", "cursor_up", "up", show=True, priority=True),
         Binding("b", "build_visual", "Build", show=True, priority=True),
+        Binding("r", "run_visual", "Run", show=True, priority=True),
         Binding("s", "stop_visual", "Stop", show=True, priority=True),
         Binding("o", "toggle_route_preview", "Prev(o)", show=True, priority=True),
         Binding("left_square_bracket", "previous_parameter", "Control", show=False, priority=True),
