@@ -28,7 +28,7 @@ fn main() {
 
 fn model(app: &App) -> Model {
     app.new_window()
-        .size(1920, 1080)
+        .size(192, 108)
         .view(view)
         .build()
         .unwrap();
@@ -40,20 +40,16 @@ fn model(app: &App) -> Model {
     };
     for _ in 0..140 {
         let angle = rand(&mut seed) * 6.28318;
-        let radius = 80.0 + rand(&mut seed) * 700.0;
+        let radius = 10.0 + rand(&mut seed) * 700.0;
         let speed = 0.1 + rand(&mut seed) * 0.8;
         let orbit = (rand(&mut seed) - 0.5) * 2.0;
-        let size = 1.5 + rand(&mut seed) * 4.0;
+        let size = 1.5 + rand(&mut seed) * 0;
         particles.push(Particle { angle, radius, speed, orbit, size });
     }
-    Model {
+    Model i{
         time: 0.0,
         particles,
-        osc: osc_listen(9009),
-        speed: 0.5,
-        spread: 0.6,
-        hue_shift: 0.02,
-    }
+        osc: osc_listen(90    }
 }
 
 fn update(_app: &App, model: &mut Model, _update: Update) {

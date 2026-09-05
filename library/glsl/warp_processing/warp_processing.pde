@@ -16,6 +16,7 @@ void settings() {
 }
 
 void setup() {
+    if (System.getenv("XVC_HEADLESS") != null) surface.setVisible(false);
     warpShader = loadShader(shaderFile);
     lastMod = new File(sketchPath("data"), shaderFile).lastModified();
     osc = new OscIn(9003);

@@ -21,6 +21,7 @@ void settings() {
 }
 
 void setup() {
+    if (System.getenv("XVC_HEADLESS") != null) surface.setVisible(false);
     background(0);
     flowField = new float[COLS * ROWS];
     particles = new ArrayList<PVector>();

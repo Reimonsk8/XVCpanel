@@ -27,6 +27,7 @@ void settings() {
 }
 
 void setup() {
+    if (System.getenv("XVC_HEADLESS") != null) surface.setVisible(false);
     colorMode(HSB, 360, 100, 100, 100);
     noStroke();
     balls = new ArrayList<Ball>();

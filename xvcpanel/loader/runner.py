@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from xvcpanel.models.visual import Visual, VisualStatus
+from xvcpanel.models.visual import Framework, Visual, VisualStatus
 
 log = logging.getLogger(__name__)
 
@@ -102,6 +102,11 @@ def run_visual(visual: Visual) -> tuple[bool, str]:
     if not run:
         return False, "no run command"
 
+    # preview-only route for a Processing/GLSL visual: no OS window, no console.
+    # The visual keeps rendering data/frame.png into the in-terminal preview pane.
+    headless = (visual.framework in (Framework.PROCESSING, Framework.GLSL)
+                and visual.has_route("preview") and not visual.has_route("window"))
+
     log.info("running %s: %s", visual.name, run)
     try:
         cwd = str(visual.path)
@@ -113,10 +118,17 @@ def run_visual(visual: Visual) -> tuple[bool, str]:
             with open(bat, "w") as f:
                 f.write("@echo off\n")
                 f.write('set "PATH=' + _minimal_path(visual.path) + '"\n')
+                if headless:
+                    f.write("set XVC_HEADLESS=1\n")
                 f.write("cd /d " + abs_cwd + "\n")
                 f.write(run + "\n")
 
-            if TERM == "wt":
+            if headless:
+                proc = subprocess.Popen(
+                    ["cmd", "/c", bat],
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+            elif TERM == "wt":
                 proc = subprocess.Popen(
                     ["wt", "new-tab", "--title", visual.name, "cmd", "/k", bat],
                 )

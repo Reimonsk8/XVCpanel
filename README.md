@@ -219,7 +219,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\dev.ps1
 ```
 
 - `Enter` or `e` in the panel types `:e <file>` into the left nvim pane and focuses it (the multiplexed edit). Outside dev.ps1 the file opens in a new terminal window instead.
-- `[v]`/`o` spawns an in-terminal Kitty preview pane watching the selected visual's `data/frame.png` (all 7 Processing visuals emit it at ~4 fps); toggling off or changing selection kills it.
+- `[v]`/`o` spawns an in-terminal Kitty preview pane watching the selected visual's `data/frame.png` (all 7 Processing visuals emit it at ~4 fps); toggling off or changing selection kills it. With the route in preview-only mode (preview on, window off) `[Run]`/`r` launches the Processing/GLSL visual headless — no OS window, no console — streaming only into the terminal preview.
 - `[float]` moves editor and preview into their own windows and closes the left pane; `[dock]` puts them back in one window.
 - `F9` zooms/restores a pane (`wezterm cli zoom-pane --pane-id <N> --toggle`).
 - Every `wezterm cli` call is logged to `%TEMP%\xvcpanel-mux.log` - check the last lines there if a pane action silently does nothing.
