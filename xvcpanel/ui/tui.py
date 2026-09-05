@@ -129,6 +129,10 @@ class PreviewPanel(Static):
             yield Rule()
             yield Label("[bold #8a93a6]OUTPUT ROUTE[/]", id="pv-output-label")
             yield Label("--", id="pv-output")
+            with Horizontal(id="pv-route"):
+                yield Button("[w]", id="rt2-win", classes="rt-mini")
+                yield Button("[R]", id="rt2-res", classes="rt-mini")
+                yield Button("[v]", id="rt2-prev", classes="rt-mini")
             yield Rule()
             yield Label("[bold #8a93a6]LIVE CONTROLS[/]", id="pv-controls-label")
             with Vertical(id="controls-list"):
@@ -245,6 +249,9 @@ class XVCpanel(App):
     #visual-table > .datatable--cursor { background: #12201a; color: #00ff9d; }
     #preview-panel { width: 42%; background: #0b0c10; padding: 1 2; border-left: tall #1a1c24; }
     #preview-panel.hidden { display: none; }
+    #pv-route { height: 3; align-vertical: middle; margin-top: 1; }
+    #pv-route Button { margin: 0 2 0 0; min-width: 4; height: 1; border: none; background: #12141a; color: #8a93a6; padding: 0 1; }
+    #pv-route Button.active { color: #00ff9d; background: #12201a; }
     #preview-inner { height: 1fr; }
     #preview-inner Rule { color: #1a1c24; }
     #status-bar { width: 100%; height: 1; background: #0b0c10; color: #8a93a6; padding: 0 1; }
@@ -406,9 +413,9 @@ class XVCpanel(App):
             table.add_row(state, v.name, FW_SHORT.get(v.framework, "?"), v.output.name, params, tags)
         self.query_one("#preview", PreviewPanel).update_visual(vis, self.parameter_index)
         self._update_status_bar()
-        for ident, sink in (("#btn-rt-win", "window"), ("#btn-rt-res", "resolume"), ("#btn-rt-prev", "preview")):
-            btn = self.query_one(ident, Button)
-            btn.set_class(vis is not None and sink in vis.route, "active")
+        for ident, sink in (("#btn-rt-win", "window"), ("#btn-rt-res", "resolume"), ("#btn-rt-prev", "preview"),
+                            ("#rt2-win", "window"), ("#rt2-res", "resolume"), ("#rt2-prev", "preview")):
+            self.query_one(ident, Button).set_class(vis is not None and sink in vis.route, "active")
 
     def _update_status_bar(self) -> None:
         n = len(self.visuals)
@@ -557,10 +564,12 @@ class XVCpanel(App):
                sys.executable, preview_py, "--width", "46",
                str(vis.path / "data" / "frame.png")]
         out = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
-        if out.returncode != 0:
-            return "(pane spawn failed: " + (out.stderr.strip().splitlines()[-1:] or ["unknown"])[0][:80] + ")"
-        self._preview_pane_id = out.stdout.strip().splitlines()[-1].strip()
-        return f"(pane {self._preview_pane_id})"
+        pane_id = out.stdout.strip().splitlines()[-1].strip() if out.stdout.strip() else ""
+        if out.returncode != 0 or not pane_id:
+            err = (out.stderr.strip() or out.stdout.strip()).splitlines()
+            return "(spawn failed: " + (err[-1] if err else "no pane id")[:80] + ")"
+        self._preview_pane_id = pane_id
+        return f"(pane {pane_id})"
 
     def _close_preview_pane(self) -> str:
         pid, self._preview_pane_id = self._preview_pane_id, None
@@ -569,9 +578,9 @@ class XVCpanel(App):
         cli = self._wezterm_cli()
         if not cli:
             return "(no wezterm)"
-        out = subprocess.run([cli, "cli", "close-pane", "--pane-id", pid],
+        out = subprocess.run([cli, "cli", "kill-pane", "--pane-id", pid],
                              capture_output=True, text=True, timeout=10)
-        return "(close failed)" if out.returncode != 0 else ""
+        return "(kill failed)" if out.returncode != 0 else ""
 
     def _parameter(self) -> tuple[Visual | None, Parameter | None]:
         vis = self._selected()
@@ -852,6 +861,18 @@ class XVCpanel(App):
 
     @on(Button.Pressed, "#btn-rt-prev")
     def on_btn_rt_prev(self, event: Button.Pressed) -> None:
+        self.action_toggle_route_preview()
+
+    @on(Button.Pressed, "#rt2-win")
+    def on_rt2_win(self, event: Button.Pressed) -> None:
+        self.action_toggle_route_window()
+
+    @on(Button.Pressed, "#rt2-res")
+    def on_rt2_res(self, event: Button.Pressed) -> None:
+        self.action_toggle_route_resolume()
+
+    @on(Button.Pressed, "#rt2-prev")
+    def on_rt2_prev(self, event: Button.Pressed) -> None:
         self.action_toggle_route_preview()
 
     @on(Button.Pressed, "#btn-prev")
