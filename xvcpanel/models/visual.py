@@ -76,7 +76,7 @@ class Visual:
     osc_host: str = "127.0.0.1"
     osc_port: int = 0
     output_index: int = 0
-    route: list[str] = field(default_factory=lambda: ["window"])
+    route: list[str] = field(default_factory=lambda: ["preview"])
     status: VisualStatus = VisualStatus.IDLE
     process: object = field(default=None, repr=False)
 

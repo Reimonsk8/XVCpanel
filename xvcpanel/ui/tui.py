@@ -333,6 +333,7 @@ class XVCpanel(App):
         self._live_mtime: float = 0.0
         self._preview_pane_id: str | None = None
         self._preview_float_pane: str | None = None
+        self._preview_frame: str | None = None
         self._popout_pane_id: str | None = None
         self._floating: bool = False
 
@@ -372,6 +373,15 @@ class XVCpanel(App):
         self.set_interval(0.05, self._tick_modulation)
         self.set_interval(0.6, self._poll_live)
         table.focus()
+        self.call_after_refresh(self._auto_preview)
+
+    def _auto_preview(self) -> None:
+        vis = self._selected()
+        if (vis and "preview" in vis.route and not self._preview_pane_id
+                and not self._preview_float_pane):
+            note = self._spawn_preview_pane(vis)
+            if note:
+                self.query_one("#status-bar").update(" auto-preview" + note)
 
     def _bootstrap_path(self) -> None:
         import os
@@ -549,9 +559,15 @@ class XVCpanel(App):
 
     def _retarget_preview_pane(self) -> None:
         vis = self._selected()
-        if vis and "preview" in vis.route:
-            self._close_preview_pane()
-            self._spawn_preview_pane(vis)
+        if not vis or "preview" not in vis.route:
+            return
+        frame = str(vis.path / "data" / "frame.png")
+        if self._preview_frame == frame:
+            return
+        self._close_preview_pane()
+        note = self._spawn_preview_pane(vis)
+        if note:
+            self.query_one("#status-bar").update(f" {vis.name}: preview" + note)
 
     def _wezterm_cli(self) -> str | None:
         wez = shutil.which("wezterm")
@@ -598,6 +614,7 @@ class XVCpanel(App):
         base = str(vis.path.resolve()) if vis else str(self.library_path.resolve())
         args = [str(vis.path / "data" / "frame.png")] if vis else []
         prog = [sys.executable, preview_py, "--width", "46", *args]
+        self._preview_frame = args[0] if args else None
         if self._floating:
             out = self._mux("spawn", "--new-window", "--cwd", base, "--", *prog, timeout=15)
             attr = "_preview_float_pane"
@@ -613,6 +630,7 @@ class XVCpanel(App):
 
     def _close_preview_pane(self) -> str:
         notes: list[str] = []
+        self._preview_frame = None
         for attr in ("_preview_pane_id", "_preview_float_pane"):
             pid = getattr(self, attr)
             setattr(self, attr, None)

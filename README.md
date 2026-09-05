@@ -208,7 +208,7 @@ Download the SDK from [openframeworks.cc/download](https://openframeworks.cc/dow
 | `p` | Toggle details panel |
 | `q` | Quit XVCpanel |
 
-Action bar buttons: `[Run]` builds if needed and launches the route, `[Stop]` kills the process tree, `[Build]` builds only, `[edit]` opens the source, `[live]` toggles live reload, `[float]`/`[dock]` switches between the multiplexed triptych and separate windows, and `[w] [R] [v]` toggle the window / resolume / preview route per visual. Run, edit, and live also work with nothing selected (live edits the default GLSL sketch).
+Action bar buttons: `[Run]`/`r` builds if needed and launches, `[Stop]`/`s` kills the process tree, `[Build]`/`b` builds only, `[edit]`/`e` opens the source, `[live]`/`g` toggles live reload, `[float]`/`[dock]` switches between the multiplexed triptych and separate windows, and `[w] [R] [v]` toggle the window / resolume / preview route per visual. Route defaults: preview ON (auto-spawns the in-terminal preview), window and resolume OFF. Run, edit, and live also work with nothing selected (live edits the default GLSL sketch).
 
 ## Dev Workflow (WezTerm Triptych)
 

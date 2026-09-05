@@ -5,10 +5,11 @@
 #      │  (editor)    │              │
 #      └──────────────┴──────────────┘
 #
-# The live in-terminal preview pane is NOT opened here - toggle it from the
-# panel with the "[v]" route button (or `o`). The panel spawns/kills the
-# preview pane via `wezterm cli split-pane/close-pane` on the fly, watching
-# the selected visual's own data/frame.png.
+# The live in-terminal preview pane is spawned automatically by the panel at
+# startup (route preview is ON by default); toggle it with the "[v]" route
+# button (or `o`). The panel spawns/kills the preview pane on the fly via
+# `wezterm cli split-pane/close-pane`, watching the selected visual's own
+# data/frame.png.
 #
 # Panes collapse/show/hide: focus a pane and press F9 (toggle back with F9 again),
 # or per-pane: wezterm cli zoom-pane --pane-id <N> --toggle.
@@ -45,7 +46,7 @@ $PanelPane = ($PanelOut | Select-Object -Last 1).Trim()
 
 Write-Host "  layout: editor ($EditorPane)  |  panel ($PanelPane)"
 Write-Host "  F9 in a pane to collapse/show/hide the other panes. Quit nvim when done."
-Write-Host "  route [v] (or `o`) in the panel opens the in-terminal preview pane for the selected visual."
+Write-Host "  route [v] (or `o`) toggles the in-terminal preview pane for the selected visual."
 
 # Editor for this pane: $EDITOR, then bundled nvim, then nvim on PATH.
 $Editor = $env:EDITOR
